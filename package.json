@@ -1,0 +1,66 @@
+{
+  "name": "@iov/starname",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "prebuild": "yarn gen-proto",
+    "pregen-proto": "rm -rf src/proto && mkdir src/proto",
+    "gen-proto": "protoc --proto_path=proto --proto_path=proto/third-party --ts_proto_opt=esModuleInterop=true --ts_proto_out=src/proto proto/tx.proto",
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/preset-typescript": "^7.15.0",
+    "@types/jest": "^27.0.1",
+    "@typescript-eslint/eslint-plugin": "^4.22.0",
+    "@typescript-eslint/parser": "^4.0.0",
+    "eslint": "^6.6.0",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-flowtype": "^4.7.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-jsx-a11y": "^6.4.1",
+    "eslint-plugin-prettier": "^3.4.0",
+    "eslint-plugin-react": "^7.23.2",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "eslint-plugin-simple-import-sort": "^7.0.0",
+    "isomorphic-fetch": "^3.0.0",
+    "jest": "^27.1.0",
+    "prettier": "^2.3.2",
+    "protoc-gen-ts": "^0.4.0",
+    "ts-jest": "^27.0.5",
+    "typescript": "^4.4.2"
+  },
+  "dependencies": {
+    "@chainapsis/cosmosjs": "^0.0.3-alpha.3",
+    "@cosmjs/amino": "^0.26.0",
+    "@cosmjs/proto-signing": "^0.26.0",
+    "@cosmjs/stargate": "^0.26.0",
+    "@iov/asset-directory": "^3.2.0",
+    "@iov/gdrive-custodian": "^1.2.0",
+    "@iov/ledger-iovns": "^2.1.1",
+    "@keplr-wallet/types": "^0.8.11",
+    "@ledgerhq/hw-transport": "^6.3.0",
+    "@ledgerhq/hw-transport-webusb": "^6.6.0",
+    "@types/secp256k1": "^4.0.3",
+    "google-protobuf": "^3.18.0-rc.2",
+    "secp256k1": "^4.0.2",
+    "ts-proto": "^1.82.5"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "transform": {
+      "node_modules/variables/.+\\.(j|t)sx?$": "ts-jest"
+    },
+    "moduleDirectories": [
+      "src",
+      "node_modules"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!variables/.*)"
+    ]
+  }
+}
