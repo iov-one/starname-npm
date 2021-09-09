@@ -44,6 +44,20 @@ export class SeedPhraseSigner implements Signer {
     return Buffer.from(pubKey).toString("base64");
   }
 
+  public async random(): Promise<void> {
+    this.directSigner = await DirectSecp256k1HdWallet.generate(12, {
+      hdPaths: [hdPath],
+      prefix: "star",
+    });
+    this.aminoSigner = await Secp256k1HdWallet.fromMnemonic(
+      this.directSigner.mnemonic,
+      {
+        hdPaths: [hdPath],
+        prefix: "star",
+      },
+    );
+  }
+
   public async initialize(phrase: string): Promise<boolean> {
     this.directSigner = await DirectSecp256k1HdWallet.fromMnemonic(phrase, {
       hdPaths: [hdPath],

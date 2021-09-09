@@ -1,6 +1,6 @@
-import { Any } from "@cosmjs/proto-signing/build/codec/google/protobuf/any";
 import { Coin } from "@cosmjs/stargate";
 import { Log } from "@cosmjs/stargate/build/logs";
+import Long from "long";
 
 import { PaginationPage } from "./page";
 
@@ -8,8 +8,8 @@ export interface StargateTxBody<T> {
   messages: ReadonlyArray<T>;
   memo?: string;
   timeoutHeight?: Long;
-  extensionOptions?: Any[];
-  nonCriticalExtensionOptions?: Any[];
+  extensionOptions?: any[];
+  nonCriticalExtensionOptions?: any[];
 }
 
 export interface StargateTx<T> {

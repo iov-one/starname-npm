@@ -1,8 +1,21 @@
 import { EncodeObject } from "@cosmjs/proto-signing";
-import { StdFee } from "@cosmjs/stargate";
-import config from "config";
-import { TxType } from "signers/starnameRegistry";
+import { Coin, StdFee } from "@cosmjs/stargate";
+import { TxType } from "starnameRegistry";
 import { isKeyOf } from "utils/isKeyOf";
+
+export interface GasConfig {
+  readonly gasMap: GasMap;
+  readonly gasPrice: Coin;
+}
+
+export interface GasMap {
+  readonly "/starnamed.x.starname.v1beta1.MsgRenewDomain": number;
+  readonly "/starnamed.x.starname.v1beta1.MsgReplaceAccountResources": number;
+  readonly "/starnamed.x.starname.v1beta1.MsgTransferDomain": number;
+  readonly "cosmos-sdk/MsgSend": number;
+  readonly "cosmos-sdk/MsgBeginRedelegate": number;
+  readonly default: number;
+}
 
 const getResourcesCount = (msg: EncodeObject): number => {
   const { value } = msg;
@@ -14,13 +27,16 @@ const getResourcesCount = (msg: EncodeObject): number => {
   }
 };
 
-export const estimateFee = (msgs: ReadonlyArray<EncodeObject>): StdFee => {
-  const { gasMap, gasPrice } = config;
+export const estimateFee = (
+  msgs: ReadonlyArray<EncodeObject>,
+  options: GasConfig,
+): StdFee => {
+  const { gasMap, gasPrice } = options;
   const totalGas = msgs.reduce(
     (totalGas: number, msg: EncodeObject): number => {
       const msgType = msg.typeUrl;
       if (msgType === TxType.Starname.ReplaceAccountResources) {
-        const msgGas: number | undefined = gasMap[msgType];
+        const msgGas: number = gasMap[msgType] ?? gasMap.default;
         return Math.max(
           msgGas * getResourcesCount(msg) + gasMap.default / 2,
           gasMap.default / 2,

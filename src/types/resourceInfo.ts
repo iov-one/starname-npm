@@ -1,5 +1,6 @@
 import api from "api";
-import { FAVORITE_ASSET_URI } from "genericConstants";
+import { FAVORITE_ASSET_URI } from "constants/favoriteAssetUri";
+import { Asset } from "types/asset";
 
 export interface Resource {
   readonly uri: string;
@@ -14,7 +15,6 @@ export interface ResourceInfo {
 
 export const getPreferredAsset = (
   resources: ReadonlyArray<Resource> | null,
-  targets: ReadonlyArray<ResourceInfo>,
 ): string => {
   if (resources === null) return "";
   const found: Resource | undefined = resources.find(
@@ -47,6 +47,7 @@ export const getTargetsFromResources = (
             "starname-uri": uri,
             name: symbol.toUpperCase(),
             symbol: symbol.toUpperCase(),
+            denom: "u" + symbol.toLowerCase(),
             logo: "",
           },
         };

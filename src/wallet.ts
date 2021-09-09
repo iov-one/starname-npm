@@ -38,15 +38,17 @@ import { Resource, ResourceInfo } from "types/resourceInfo";
 import { TokenLike } from "types/tokenLike";
 import { Transaction } from "types/transaction";
 import { Tx } from "types/tx";
-import { estimateFee } from "utils/estimateFee";
+import { estimateFee, GasConfig } from "utils/estimateFee";
 
 export class Wallet {
   private readonly signer: Signer;
   private readonly rpcUrl: string;
+  private readonly gasConfig: GasConfig;
 
-  constructor(signer: Signer, rpcUrl: string) {
+  constructor(signer: Signer, rpcUrl: string, options: GasConfig) {
     this.signer = signer;
     this.rpcUrl = rpcUrl;
+    this.gasConfig = options;
   }
 
   protected async signAndBroadcast(
@@ -76,7 +78,7 @@ export class Wallet {
   ): Promise<TxRaw> {
     const { messages, memo } = msgsAndMemo;
     const address = await this.getAddress();
-    const fee = estimateFee(messages);
+    const fee = estimateFee(messages, this.gasConfig);
     const registry = new StarnameRegistry();
 
     const client = await SigningStargateClient.connectWithSigner(
@@ -115,21 +117,18 @@ export class Wallet {
 
   public async getBalances(): Promise<ReadonlyArray<Balance>> {
     const signer: Signer = this.getSigner();
-    const taskContainer: { task: Promise<ReadonlyArray<Balance>> | undefined } =
-      {
-        task: undefined,
-      };
-
-    return api.getBalance(await signer.getAddress());
+    const task = api.getBalance(await signer.getAddress());
+    return task.run();
   }
 
   public async getTransactions(
     page: Pager,
   ): Promise<StdMap<ResponsePage<Transaction>>> {
     const signer: Signer = this.getSigner();
-
-    return api.getTransactions(await signer.getAddress(), page);
+    const task = api.getTransactions(await signer.getAddress(), page);
+    return task.run();
   }
+
   private static buildPreferredAssetItem(
     preferredAsset: string,
   ): ReadonlyArray<Resource> {

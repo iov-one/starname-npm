@@ -1,7 +1,5 @@
 import { GoogleAuthInfo, Signer, SignerState } from "@iov/gdrive-custodian";
 import { VoidCallback } from "@iov/gdrive-custodian/lib/types/voidCallback";
-import config from "config";
-import { GOOGLE_DRIVE_REQUEST_AUTHORIZATION_TO_SIGN } from "routes/paths";
 
 const assertSignerIsValid = (signer: Signer | undefined): void => {
   if (signer === undefined) {
@@ -17,14 +15,18 @@ export class GDriveCustodian {
 
   public initialized = true;
 
-  public static create(): GDriveCustodian {
+  public static create(
+    googleClientID: string,
+    mnemonicLength: 12 | 24,
+    signAuthPath: string,
+  ): GDriveCustodian {
     const custodian = new GDriveCustodian();
     custodian.signer = new Signer({
       authorization: {
-        path: GOOGLE_DRIVE_REQUEST_AUTHORIZATION_TO_SIGN,
+        path: signAuthPath,
       },
-      googleClientID: config.googleOAuthClientId,
-      mnemonicLength: config.gdriveMnemonicLength,
+      googleClientID: googleClientID,
+      mnemonicLength: mnemonicLength,
     });
     custodian.initialized = false;
     return custodian;

@@ -10,8 +10,7 @@ import { BroadcastTxResponse as StargateBroadcastTxResponse } from "@cosmjs/star
 
 export type PostTxResult =
   | StargateBroadcastTxResponse
-  | LaunchpadBroadcastTxResponse
-  | StdFee;
+  | LaunchpadBroadcastTxResponse;
 
 export const isTransactionSuccess = (
   result: PostTxResult | any,

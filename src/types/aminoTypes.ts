@@ -13,7 +13,7 @@ import {
   MsgTransferDomain,
 } from "proto/tx";
 import { Resource } from "proto/types";
-import { TxType } from "signers/starnameRegistry";
+import { TxType } from "starnameRegistry";
 
 export enum AminoType {
   RegisterDomain = "starname/RegisterDomain",
