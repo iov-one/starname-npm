@@ -1,4 +1,3 @@
-import { Block } from "@cosmjs/stargate";
 import { Task } from "api/task";
 
 export interface BlockchainError {
@@ -24,10 +23,6 @@ export class FetchError implements Error {
     this.details = details;
   }
 }
-
-export const TaskAbortedError: FetchError = new FetchError(-1, "Aborted", [
-  "Task Aborted",
-]);
 
 const buildResponseBody = <T>(response: Response): Promise<T> => {
   const { headers } = response;
@@ -73,10 +68,12 @@ const request = <T>(
         ? await resolveAllMembers(data)
         : undefined;
 
+      const isPost = method.toLowerCase() === "post";
+
       const response = await fetch(url, {
         method: method,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(resolvedData),
+        headers: isPost ? { "content-type": "application/json" } : undefined,
+        body: isPost ? JSON.stringify(resolvedData) : undefined,
         signal: abortController.signal,
       });
 

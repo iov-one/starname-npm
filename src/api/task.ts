@@ -1,3 +1,5 @@
+import { FetchError } from "api/http";
+
 export interface Task<T> {
   run(): T | Promise<T>;
   abort(): void;
@@ -16,3 +18,9 @@ export class Task<T> implements Task<T> {
     throw new Error("tasks must implement abort");
   }
 }
+
+export type TaskError = Error;
+
+export const TaskAbortedError: FetchError = new FetchError(-1, "Aborted", [
+  "Task Aborted",
+]);

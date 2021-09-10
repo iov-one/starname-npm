@@ -5,7 +5,7 @@ import {
   Msg,
 } from "@cosmjs/launchpad";
 import { Log } from "@cosmjs/launchpad/build/logs";
-import api from "api";
+import { StarnameApi } from "api";
 import { AminoType } from "types/aminoTypes";
 import { Amount } from "types/amount";
 import { Validator } from "types/delegationValidator";
@@ -43,7 +43,10 @@ export interface Transaction {
 }
 
 export class Transaction {
-  static async fromRedelegateBaseTx(baseTx: BaseTx): Promise<Transaction> {
+  static async fromRedelegateBaseTx(
+    starnameApi: StarnameApi,
+    baseTx: BaseTx,
+  ): Promise<Transaction> {
     const { value: stdTx } = baseTx.tx;
     const {
       fee,
@@ -55,13 +58,13 @@ export class Transaction {
       throw new Error("cannot parse transaction");
     }
     return {
-      amount: api.toInternalCoins([value.amount]),
-      fee: api.toInternalCoins(fee.amount),
+      amount: starnameApi.toInternalCoins([value.amount]),
+      fee: starnameApi.toInternalCoins(fee.amount),
       data: {
-        src: await getValidator(value.validator_src_address),
-        dst: await getValidator(value.validator_dst_address),
+        src: await getValidator(starnameApi, value.validator_src_address),
+        dst: await getValidator(starnameApi, value.validator_dst_address),
       },
-      sender: await reverseLookup(value.delegator_address),
+      sender: await reverseLookup(starnameApi, value.delegator_address),
       id: baseTx.txhash,
       type: message.type as AminoType,
       time: new Date(baseTx.timestamp),
@@ -69,7 +72,10 @@ export class Transaction {
     };
   }
 
-  static async fromStakingBaseTx(baseTx: BaseTx): Promise<Transaction> {
+  static async fromStakingBaseTx(
+    starnameApi: StarnameApi,
+    baseTx: BaseTx,
+  ): Promise<Transaction> {
     const { value: stdTx } = baseTx.tx;
     const {
       fee,
@@ -81,10 +87,10 @@ export class Transaction {
       throw new Error("cannot parse transaction");
     }
     return {
-      amount: api.toInternalCoins([value.amount]),
-      fee: api.toInternalCoins(fee.amount),
-      data: await getValidator(value.validator_address),
-      sender: await reverseLookup(value.delegator_address),
+      amount: starnameApi.toInternalCoins([value.amount]),
+      fee: starnameApi.toInternalCoins(fee.amount),
+      data: await getValidator(starnameApi, value.validator_address),
+      sender: await reverseLookup(starnameApi, value.delegator_address),
       id: baseTx.txhash,
       type: message.type as AminoType,
       time: new Date(baseTx.timestamp),

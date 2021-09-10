@@ -1,14 +1,14 @@
 import "isomorphic-fetch";
 
-import api from "api";
+import { StarnameApi } from "api";
 import { SeedPhraseSigner } from "signers/seedPhrase";
 import { Wallet } from "wallet";
 
 export const rpcUrl = "http://localhost:26657";
 export const apiUrl = "http://localhost:1317";
 
-export const setupTest = async (): Promise<void> => {
-  await api.initialize(
+export const setupTest = async (starnameApi: StarnameApi): Promise<void> => {
+  await starnameApi.initialize(
     rpcUrl,
     apiUrl,
     "" /* validatorsInfoUrl */,
@@ -44,21 +44,27 @@ export const addTokensWithFaucet = async (address: string): Promise<void> => {
   }
 };
 
-export const createWallet = async (): Promise<Wallet> => {
+export const createWallet = async (
+  starnameApi: StarnameApi,
+): Promise<Wallet> => {
   const signer = new SeedPhraseSigner();
   await signer.random();
-  const wallet = new Wallet(signer, rpcUrl, {
-    gasMap: {
-      "/starnamed.x.starname.v1beta1.MsgRenewDomain": 250000,
-      "/starnamed.x.starname.v1beta1.MsgReplaceAccountResources": 10000,
-      "/starnamed.x.starname.v1beta1.MsgTransferDomain": 250000,
-      "cosmos-sdk/MsgSend": 80000,
-      "cosmos-sdk/MsgBeginRedelegate": 250000,
-      default: 200000,
-    },
-    gasPrice: {
-      denom: "uiov",
-      amount: "2",
+  const wallet = new Wallet(signer, {
+    starnameApi: starnameApi,
+    rpcUrl: rpcUrl,
+    gasConfig: {
+      gasMap: {
+        "/starnamed.x.starname.v1beta1.MsgRenewDomain": 250000,
+        "/starnamed.x.starname.v1beta1.MsgReplaceAccountResources": 10000,
+        "/starnamed.x.starname.v1beta1.MsgTransferDomain": 250000,
+        "cosmos-sdk/MsgSend": 80000,
+        "cosmos-sdk/MsgBeginRedelegate": 250000,
+        default: 200000,
+      },
+      gasPrice: {
+        denom: "uiov",
+        amount: "2",
+      },
     },
   });
   await addTokensWithFaucet(await wallet.getAddress());

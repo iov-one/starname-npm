@@ -15,10 +15,6 @@ import {
 } from "@iov/ledger-iovns";
 import Transport from "@ledgerhq/hw-transport";
 import TransportWebUSB from "@ledgerhq/hw-transport-webusb";
-import api from "api";
-/* import toast, { ToastType } from "components/toast";
-import locales from "locales/strings";
-import { LogoutEvent } from "routes";*/
 import { signatureImport } from "secp256k1";
 import { MismatchedAddressError, Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
@@ -29,16 +25,18 @@ export const DeviceNotConnected = new Error(
 const DEFAULT_ADDRESS_INDEX = 0;
 type SignResult = IovLedgerAppAddress | IovLedgerAppErrorState;
 
-export class Ledger implements Signer {
+export class LedgerSigner implements Signer {
   private ledger: IovLedgerApp | null = null;
   private addressInfo: IovLedgerAppAddress | null = null;
   private chainId = "";
   private transport: Transport | null = null;
 
+  private onSignStartedListener: VoidFunction = () => {};
+  private onSignEndedListener: VoidFunction = () => {};
+
   public type: SignerType = SignerType.Ledger;
 
-  public async initialize(confirm = false): Promise<boolean> {
-    const chainId: string = api.getChainId();
+  public async initialize(chainId: string, confirm = false): Promise<boolean> {
     const transport: Transport = await TransportWebUSB.create();
     const ledger: IovLedgerApp = new IovLedgerApp(transport);
     const result: IovLedgerAppAddress | IovLedgerAppErrorState =
@@ -49,7 +47,7 @@ export class Ledger implements Signer {
       this.addressInfo = result;
       this.ledger = ledger;
       // Connect event listeners
-      transport.on("disconnect", Ledger.onDisconnect);
+      transport.on("disconnect", LedgerSigner.onDisconnect);
     } else {
       await transport.close();
       if (result.returnCode === 28161) {
@@ -96,9 +94,9 @@ export class Ledger implements Signer {
     if (addressInfo === null || ledger === null)
       throw new Error("ledger signer not initialized yet");
     const { pubkey } = addressInfo;
-    document.dispatchEvent(new Event("ledger-sign-started"));
+    this.onSignStartedListener();
     try {
-      const bytes = Ledger.makeSignBytes(signDoc);
+      const bytes = LedgerSigner.makeSignBytes(signDoc);
       const result: SignResult = await ledger.sign(
         DEFAULT_ADDRESS_INDEX,
         String.fromCharCode(...bytes),
@@ -117,7 +115,7 @@ export class Ledger implements Signer {
         throw result;
       }
     } finally {
-      document.dispatchEvent(new Event("ledger-sign-finished"));
+      this.onSignEndedListener();
     }
   }
 
@@ -135,7 +133,7 @@ export class Ledger implements Signer {
     const { transport } = this;
     // Remove the disconnect listener
     if (transport !== null) {
-      transport.off("disconnect", Ledger.onDisconnect);
+      transport.off("disconnect", LedgerSigner.onDisconnect);
       void transport.close();
     }
   }
@@ -152,5 +150,18 @@ export class Ledger implements Signer {
 
   public getOfflineSigner(): OfflineSigner {
     return this;
+  }
+
+  public setOnSignListeners(
+    onStart: VoidFunction,
+    onEnd: VoidFunction,
+  ): VoidFunction {
+    this.onSignStartedListener = onStart;
+    this.onSignEndedListener = onEnd;
+
+    return (): void => {
+      this.onSignStartedListener = () => {};
+      this.onSignEndedListener = () => {};
+    };
   }
 }

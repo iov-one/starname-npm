@@ -7,7 +7,7 @@ import {
   isMsgUndelegateEncodeObject,
 } from "@cosmjs/stargate";
 import { Attribute, Event, Log } from "@cosmjs/stargate/build/logs";
-import api from "api";
+import { StarnameApi } from "api/index";
 import { StargateBaseTx } from "api/types/stargate/searchTxResponse";
 import { TxType } from "starnameRegistry";
 import { AminoType } from "types/aminoTypes";
@@ -18,6 +18,7 @@ import { getValidator, reverseLookup } from "utils/getTransaction";
 
 export class StargateTransaction {
   static async fromStarnameBaseTx(
+    starnameApi: StarnameApi,
     baseTx: StargateBaseTx<EncodeObject>,
   ): Promise<Transaction> {
     const { logs } = baseTx;
@@ -41,7 +42,7 @@ export class StargateTransaction {
       throw new Error("cannot find a sender for this transfer event");
     const { value } = amount;
     const unit: string = value.replace(/[0-9]+/, "");
-    const token: TokenLike | undefined = api.getToken(unit);
+    const token: TokenLike | undefined = starnameApi.getToken(unit);
     if (token === undefined)
       throw new Error("value has invalid token subunit `" + unit + "'");
     const { tx, timestamp } = baseTx;
@@ -53,9 +54,9 @@ export class StargateTransaction {
     } = tx;
     return {
       amount: [new Amount(Number(value.replace(unit, "")), token)],
-      fee: api.toInternalCoins(fee.amount),
+      fee: starnameApi.toInternalCoins(fee.amount),
       data: msg.value,
-      sender: await reverseLookup(sender.value),
+      sender: await reverseLookup(starnameApi, sender.value),
       id: baseTx.txhash,
       type: msg.typeUrl,
       time: new Date(timestamp),
@@ -64,6 +65,7 @@ export class StargateTransaction {
   }
 
   static async fromSendBaseTx(
+    starnameApi: StarnameApi,
     baseTx: StargateBaseTx<EncodeObject>,
     sender: string,
   ): Promise<Transaction> {
@@ -79,10 +81,10 @@ export class StargateTransaction {
       throw new Error("cannot parse transaction");
 
     return {
-      amount: api.toInternalCoins(value.amount),
-      fee: api.toInternalCoins(fee.amount),
-      data: await reverseLookup(value.to_address),
-      sender: await reverseLookup(value.from_address),
+      amount: starnameApi.toInternalCoins(value.amount),
+      fee: starnameApi.toInternalCoins(fee.amount),
+      data: await reverseLookup(starnameApi, value.to_address),
+      sender: await reverseLookup(starnameApi, value.from_address),
       id: baseTx.txhash,
       type:
         sender === value.to_address ? TxType.Virtual.Receive : TxType.Bank.Send,
@@ -92,6 +94,7 @@ export class StargateTransaction {
   }
 
   static async fromRedelegateBaseTx(
+    starnameApi: StarnameApi,
     baseTx: StargateBaseTx<EncodeObject>,
   ): Promise<Transaction> {
     const { tx, timestamp } = baseTx;
@@ -110,13 +113,13 @@ export class StargateTransaction {
       throw new Error("cannot parse transaction");
     }
     return {
-      amount: api.toInternalCoins([value.amount]),
-      fee: api.toInternalCoins(fee.amount),
+      amount: starnameApi.toInternalCoins([value.amount]),
+      fee: starnameApi.toInternalCoins(fee.amount),
       data: {
-        src: await getValidator(value.validator_src_address),
-        dst: await getValidator(value.validator_dst_address),
+        src: await getValidator(starnameApi, value.validator_src_address),
+        dst: await getValidator(starnameApi, value.validator_dst_address),
       },
-      sender: await reverseLookup(value.delegator_address),
+      sender: await reverseLookup(starnameApi, value.delegator_address),
       id: baseTx.txhash,
       type: aminoMessage.type as AminoType,
       time: new Date(timestamp),
@@ -125,6 +128,7 @@ export class StargateTransaction {
   }
 
   static async fromStakingBaseTx(
+    starnameApi: StarnameApi,
     baseTx: StargateBaseTx<EncodeObject>,
   ): Promise<Transaction> {
     const { tx, timestamp } = baseTx;
@@ -142,10 +146,10 @@ export class StargateTransaction {
       throw new Error("cannot parse transaction");
     }
     return {
-      amount: api.toInternalCoins([value.amount]),
-      fee: api.toInternalCoins(fee.amount),
-      data: await getValidator(value.validator_address),
-      sender: await reverseLookup(value.delegator_address),
+      amount: starnameApi.toInternalCoins([value.amount]),
+      fee: starnameApi.toInternalCoins(fee.amount),
+      data: await getValidator(starnameApi, value.validator_address),
+      sender: await reverseLookup(starnameApi, value.delegator_address),
       id: baseTx.txhash,
       type: message.typeUrl,
       time: new Date(timestamp),

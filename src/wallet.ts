@@ -2,7 +2,8 @@ import { StdSignature, StdSignDoc } from "@cosmjs/amino";
 import { OfflineSigner } from "@cosmjs/proto-signing";
 import { AminoTypes } from "@cosmjs/stargate";
 import { SigningStargateClient } from "@cosmjs/stargate/build/signingstargateclient";
-import api from "api";
+import { StarnameApi } from "api";
+import { Task } from "api/task";
 import { TxRejected } from "constants/errorCodes";
 import { FAVORITE_ASSET_URI } from "constants/favoriteAssetUri";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
@@ -24,40 +25,57 @@ import {
   MsgTransferAccount,
   MsgTransferDomain,
 } from "proto/tx";
+import { Resource } from "proto/types";
 import { Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
 import { StarnameRegistry, TxType } from "starnameRegistry";
 import { aminoTypes } from "types/aminoTypes";
 import { ResponsePage } from "types/apiPage";
 import { Balance } from "types/balance";
-import { StdMap } from "types/map";
 import { MsgsAndMemo } from "types/msgsAndMemo";
 import { Pager } from "types/pager";
 import { PostTxResult } from "types/postTxResult";
-import { Resource, ResourceInfo } from "types/resourceInfo";
+import { ResourceInfo } from "types/resourceInfo";
 import { TokenLike } from "types/tokenLike";
 import { Transaction } from "types/transaction";
 import { Tx } from "types/tx";
 import { estimateFee, GasConfig } from "utils/estimateFee";
 
+export interface WalletOptions {
+  readonly starnameApi: StarnameApi;
+  readonly rpcUrl: string;
+  readonly gasConfig: GasConfig;
+}
+
 export class Wallet {
   private readonly signer: Signer;
   private readonly rpcUrl: string;
   private readonly gasConfig: GasConfig;
+  private readonly starnameApi: StarnameApi;
 
-  constructor(signer: Signer, rpcUrl: string, options: GasConfig) {
+  constructor(signer: Signer, options: WalletOptions) {
+    if (!options.starnameApi) {
+      throw new Error(
+        "cannot create a wallet without access to the API object",
+      );
+    }
+    this.starnameApi = options.starnameApi;
     this.signer = signer;
-    this.rpcUrl = rpcUrl;
-    this.gasConfig = options;
+    this.rpcUrl = options.rpcUrl;
+    this.gasConfig = options.gasConfig;
   }
 
   protected async signAndBroadcast(
     msgsAndMemo: MsgsAndMemo,
   ): Promise<PostTxResult> {
+    const { starnameApi } = this;
+    if (starnameApi === undefined) {
+      throw new Error("wallet not initialized properly");
+    }
     try {
       const txRaw = await this.signMsgsAndMemo(msgsAndMemo);
       const bytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      return api.rpcPostTx(bytes);
+      return starnameApi.rpcPostTx(bytes);
     } catch (exception: any) {
       if (exception.message !== "Request rejected") {
         throw exception;
@@ -93,7 +111,7 @@ export class Wallet {
       },
     );
 
-    return client.sign(address, messages, fee, memo);
+    return await client.sign(address, messages, fee, memo);
   }
 
   public async signMsgsAndMemo(msgsAndMemo: MsgsAndMemo): Promise<TxRaw> {
@@ -115,18 +133,46 @@ export class Wallet {
     return this.signer;
   }
 
-  public async getBalances(): Promise<ReadonlyArray<Balance>> {
-    const signer: Signer = this.getSigner();
-    const task = api.getBalance(await signer.getAddress());
-    return task.run();
+  public getBalances(): Task<ReadonlyArray<Balance>> {
+    let task: Task<ReadonlyArray<Balance>> | null = null;
+    return {
+      run: async (): Promise<ReadonlyArray<Balance>> => {
+        const { starnameApi } = this;
+        if (starnameApi === undefined) {
+          throw new Error("wallet not initialized properly");
+        }
+        const signer: Signer = this.getSigner();
+        task = starnameApi.getBalance(await signer.getAddress());
+        return task.run();
+      },
+      abort: (): void => {
+        if (task !== null) {
+          task.abort();
+        }
+      },
+    };
   }
 
-  public async getTransactions(
+  public getTransactions(
     page: Pager,
-  ): Promise<StdMap<ResponsePage<Transaction>>> {
-    const signer: Signer = this.getSigner();
-    const task = api.getTransactions(await signer.getAddress(), page);
-    return task.run();
+  ): Task<Record<string, ResponsePage<Transaction>>> {
+    let task: Task<Record<string, ResponsePage<Transaction>>> | null = null;
+    return {
+      run: async (): Promise<Record<string, ResponsePage<Transaction>>> => {
+        const { starnameApi } = this;
+        if (starnameApi === undefined) {
+          throw new Error("wallet not initialized properly");
+        }
+        const signer: Signer = this.getSigner();
+        task = starnameApi.getTransactions(await signer.getAddress(), page);
+        return task.run();
+      },
+      abort: (): void => {
+        if (task !== null) {
+          task.abort();
+        }
+      },
+    };
   }
 
   private static buildPreferredAssetItem(
@@ -226,6 +272,10 @@ export class Wallet {
     domain: string,
     type: "closed" | "open" = "closed",
   ): Promise<PostTxResult> {
+    const { starnameApi } = this;
+    if (starnameApi === undefined) {
+      throw new Error("wallet not initialized properly");
+    }
     const address: string = await this.getAddress();
     const message: Tx<MsgRegisterDomain> = {
       typeUrl: TxType.Starname.RegisterDomain,
@@ -234,7 +284,7 @@ export class Wallet {
         admin: address,
         domainType: type,
         payer: "",
-        broker: api.getBroker(),
+        broker: starnameApi.getBroker(),
       },
     };
 
@@ -248,6 +298,10 @@ export class Wallet {
     name: string,
     domain: string,
   ): Promise<PostTxResult> {
+    const { starnameApi } = this;
+    if (starnameApi === undefined) {
+      throw new Error("wallet not initialized properly");
+    }
     const address: string = await this.getAddress();
     const message: Tx<MsgRegisterAccount> = {
       typeUrl: TxType.Starname.RegisterAccount,
@@ -258,11 +312,11 @@ export class Wallet {
         registerer: address,
         resources: [
           {
-            uri: api.getDefaultAssetURI(),
+            uri: starnameApi.getDefaultAssetURI(),
             resource: address,
           },
         ],
-        broker: api.getBroker(),
+        broker: starnameApi.getBroker(),
         payer: "",
       },
     };

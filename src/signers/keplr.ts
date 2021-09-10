@@ -8,7 +8,6 @@ import {
 import { fromBase64 } from "@cosmjs/encoding";
 import { AccountData, OfflineSigner } from "@cosmjs/proto-signing";
 import { Keplr, Key } from "@keplr-wallet/types";
-import api from "api";
 import { MismatchedAddressError, Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
 
@@ -41,6 +40,8 @@ export class KeplrSigner implements Signer {
   private keplr: Keplr | null = null;
   private offlineSigner: OfflineSigner | null = null;
 
+  private chainId = "";
+
   public async getPublicKey(): Promise<string> {
     const { publicKey } = this;
     if (publicKey === null) return "";
@@ -71,9 +72,12 @@ export class KeplrSigner implements Signer {
     });
   }
 
-  public async initialize(config: KeplrConfig): Promise<boolean> {
+  public async initialize(
+    chainId: string,
+    config: KeplrConfig,
+  ): Promise<boolean> {
     const keplr = await KeplrSigner.getKeplr();
-    const chainId: string = api.getChainId();
+    this.chainId = chainId;
     const coin = {
       coinDenom: config.symbol,
       coinMinimalDenom: config.denom,
@@ -135,9 +139,7 @@ export class KeplrSigner implements Signer {
       throw new Error("keplr extension not initialized correctly");
     }
 
-    const chainId = api.getChainId();
-
-    return keplr.signAmino(chainId, signerAddress, signDoc);
+    return keplr.signAmino(this.chainId, signerAddress, signDoc);
   }
 
   public getOfflineSigner(): OfflineSigner {
