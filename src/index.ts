@@ -52,3 +52,4 @@ export type DelegationData = import("types/transaction").DelegationData;
 export type TaskError = import("api/task").TaskError;
 export type GasMap = import("utils/estimateFee").GasMap;
 export type WalletOptions = import("wallet").WalletOptions;
+export type Asset = import("types/asset").Asset;
