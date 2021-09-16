@@ -29,6 +29,7 @@ import { Resource } from "proto/types";
 import { Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
 import { StarnameRegistry, TxType } from "starnameRegistry";
+import { AddressGroup } from "types/addressGroup";
 import { aminoTypes } from "types/aminoTypes";
 import { ResponsePage } from "types/apiPage";
 import { Balance } from "types/balance";
@@ -39,6 +40,7 @@ import { ResourceInfo } from "types/resourceInfo";
 import { TokenLike } from "types/tokenLike";
 import { Transaction } from "types/transaction";
 import { Tx } from "types/tx";
+import { WalletChains } from "types/walletChains";
 import { estimateFee, GasConfig } from "utils/estimateFee";
 
 export interface WalletOptions {
@@ -294,15 +296,71 @@ export class Wallet {
     });
   }
 
+  private createResourcesFromAddressGroup = (
+    addressGroup: AddressGroup,
+    chains: WalletChains,
+  ): Array<Resource> => {
+    const resources: Array<Resource> = Object.keys(addressGroup).map(
+      (chainId) => {
+        const symbol = chains[chainId].symbol;
+        return {
+          uri: `asset:${symbol.toLowerCase()}`,
+          // signers sends it on 0th index
+          resource: addressGroup[chainId][0].address,
+        };
+      },
+    );
+    return resources;
+  };
+
+  private getOtherChainResources = async (
+    chains: WalletChains,
+  ): Promise<Array<Resource>> => {
+    switch (this.getSignerType()) {
+      case SignerType.Keplr:
+      case SignerType.Google:
+      case SignerType.SeedPhrase: {
+        // Now request signer to provide addressGroup ( for chains )
+        try {
+          const addressGroup = await this.signer.getAddressGroup(chains);
+          const resources = this.createResourcesFromAddressGroup(
+            addressGroup,
+            chains,
+          );
+          return resources;
+        } catch (error) {
+          console.warn(error);
+        }
+        break;
+      }
+      default:
+        return [];
+    }
+    return [];
+  };
+
   public async registerAccount(
     name: string,
     domain: string,
+    chains?: WalletChains,
   ): Promise<PostTxResult> {
-    const { starnameApi } = this;
-    if (starnameApi === undefined) {
-      throw new Error("wallet not initialized properly");
-    }
     const address: string = await this.getAddress();
+    const chainResources: Array<Resource> = [];
+    // Set default resource first
+    chainResources.push({
+      uri: this.starnameApi.getDefaultAssetURI(),
+      resource: address,
+    });
+    // if require generation of other chain addresses as well
+    if (chains) {
+      try {
+        const otherChainResources = await this.getOtherChainResources(chains);
+        chainResources.push(...otherChainResources);
+      } catch (error) {
+        console.warn("Failure getting otherChainResources");
+      }
+    }
+
     const message: Tx<MsgRegisterAccount> = {
       typeUrl: TxType.Starname.RegisterAccount,
       value: {
@@ -310,13 +368,8 @@ export class Wallet {
         name: name,
         owner: address,
         registerer: address,
-        resources: [
-          {
-            uri: starnameApi.getDefaultAssetURI(),
-            resource: address,
-          },
-        ],
-        broker: starnameApi.getBroker(),
+        resources: chainResources,
+        broker: this.starnameApi.getBroker(),
         payer: "",
       },
     };
