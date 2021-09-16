@@ -18,6 +18,7 @@ import TransportWebUSB from "@ledgerhq/hw-transport-webusb";
 import { signatureImport } from "secp256k1";
 import { MismatchedAddressError, Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
+import { AddressGroup } from "types/addressGroup";
 
 export const DeviceNotConnected = new Error(
   "Please make sure your device is connected, and you have opened the IOV application.",
@@ -80,6 +81,10 @@ export class LedgerSigner implements Signer {
     const { addressInfo } = this;
     if (addressInfo === null) return "";
     return addressInfo.address;
+  }
+
+  public async getAddressGroup(): Promise<AddressGroup> {
+    throw new Error("Not implemented for ledger signer");
   }
 
   private static makeSignBytes(signable: StdSignDoc): Uint8Array {

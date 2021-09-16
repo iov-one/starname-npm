@@ -7,12 +7,17 @@ import {
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
+import { AddressGroup } from "types/addressGroup";
 
 export class DummySigner implements Signer {
   readonly type: SignerType = SignerType.Generic;
 
   public getAddress(): Promise<string> {
     return Promise.resolve("");
+  }
+
+  public getAddressGroup(): Promise<AddressGroup> {
+    return Promise.resolve({});
   }
 
   public getPublicKey(): Promise<string> {
