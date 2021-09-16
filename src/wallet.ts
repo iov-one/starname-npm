@@ -345,9 +345,9 @@ export class Wallet {
     chains?: WalletChains,
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
-    const chainResources: Array<Resource> = [];
+    const resources: Array<Resource> = [];
     // Set default resource first
-    chainResources.push({
+    resources.push({
       uri: this.starnameApi.getDefaultAssetURI(),
       resource: address,
     });
@@ -355,7 +355,7 @@ export class Wallet {
     if (chains) {
       try {
         const otherChainResources = await this.getOtherChainResources(chains);
-        chainResources.push(...otherChainResources);
+        resources.push(...otherChainResources);
       } catch (error) {
         console.warn("Failure getting otherChainResources");
       }
@@ -368,7 +368,7 @@ export class Wallet {
         name: name,
         owner: address,
         registerer: address,
-        resources: chainResources,
+        resources: resources,
         broker: this.starnameApi.getBroker(),
         payer: "",
       },
