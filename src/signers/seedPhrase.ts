@@ -3,9 +3,11 @@ import {
   Secp256k1HdWallet,
   StdSignDoc,
 } from "@cosmjs/amino";
+import { stringToPath } from "@cosmjs/crypto";
 import {
   AccountData,
   DirectSecp256k1HdWallet,
+  DirectSecp256k1HdWalletOptions,
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
@@ -13,11 +15,14 @@ import { hdPath } from "constants/hdPath";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { MismatchedAddressError, Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
+import { AddressGroup } from "types/addressGroup";
+import { WalletChains } from "types/walletChains";
 
 export class SeedPhraseSigner implements Signer {
   readonly type = SignerType.SeedPhrase;
   private directSigner: DirectSecp256k1HdWallet | null = null;
   private aminoSigner: Secp256k1HdWallet | null = null;
+  private phrase: string | null = null;
 
   public async getAddress(): Promise<string> {
     const { directSigner } = this;
@@ -29,6 +34,24 @@ export class SeedPhraseSigner implements Signer {
       throw new Error("cannot read signer accounts");
     }
     return accounts[0].address;
+  }
+
+  public async getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+    const chainIds = Object.keys(chains);
+    const chainProps = Object.values(chains);
+
+    const resolvedAddressData = await Promise.all(
+      chainProps.map((option) => {
+        return this.getExtraAccounts({
+          prefix: option.prefix,
+          hdPaths: option.hdPaths.map(stringToPath),
+        });
+      }),
+    );
+
+    return chainIds.reduce((addressGroup, chainId, idx) => {
+      return { ...addressGroup, [chainId]: resolvedAddressData[idx] };
+    }, {});
   }
 
   public async getPublicKey(): Promise<string> {
@@ -59,6 +82,7 @@ export class SeedPhraseSigner implements Signer {
   }
 
   public async initialize(phrase: string): Promise<boolean> {
+    this.phrase = phrase;
     this.directSigner = await DirectSecp256k1HdWallet.fromMnemonic(phrase, {
       hdPaths: [hdPath],
       prefix: "star",
@@ -91,6 +115,18 @@ export class SeedPhraseSigner implements Signer {
       throw new Error("not initialized");
     }
     return directSigner.getAccounts();
+  }
+
+  public async getExtraAccounts(
+    options: Partial<DirectSecp256k1HdWalletOptions>,
+  ): Promise<ReadonlyArray<AccountData>> {
+    const { phrase } = this;
+    if (phrase === null) {
+      throw new Error("signer not initialized");
+    }
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(phrase, options);
+
+    return wallet.getAccounts();
   }
 
   public signAlephMessage(

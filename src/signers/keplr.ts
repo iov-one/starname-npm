@@ -6,10 +6,12 @@ import {
   StdSignDoc,
 } from "@cosmjs/amino";
 import { fromBase64 } from "@cosmjs/encoding";
-import { AccountData, OfflineSigner } from "@cosmjs/proto-signing";
+import { AccountData, Algo, OfflineSigner } from "@cosmjs/proto-signing";
 import { Keplr, Key } from "@keplr-wallet/types";
 import { MismatchedAddressError, Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
+import { AddressGroup } from "types/addressGroup";
+import { WalletChains } from "types/walletChains";
 
 interface GasPriceStep {
   readonly low: number;
@@ -52,6 +54,33 @@ export class KeplrSigner implements Signer {
     const { address } = this;
     if (address === null) return "";
     return address;
+  }
+
+  public async getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+    const { keplr } = this;
+    // enable these chains first
+    if (keplr === null) throw new Error("Keplr extension not initialized");
+    try {
+      // get permissions for using chains
+      // FIXME: keplr.enable current one is just a workaround
+      // until keplr updates its wallet types to support chainIds[] in enable()
+      const chainIds = Object.keys(chains);
+      await window.keplr.enable(chainIds as any);
+      const resolvedAddressData = await Promise.all(
+        chainIds.map(async (chainId) => {
+          const { bech32Address, algo, pubKey } = await keplr.getKey(chainId);
+          return [
+            { address: bech32Address, algo: algo as Algo, pubkey: pubKey },
+          ];
+        }),
+      );
+      return chainIds.reduce((addressGroup, chainId, idx) => {
+        return { ...addressGroup, [chainId]: resolvedAddressData[idx] };
+      }, {});
+    } catch (error) {
+      console.warn(error);
+      throw new Error("Request for chain permissions rejected");
+    }
   }
 
   private static getFeatures(): Array<string> {

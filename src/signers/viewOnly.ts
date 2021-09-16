@@ -7,6 +7,7 @@ import {
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
+import { AddressGroup } from "types/addressGroup";
 
 export class ViewOnlySigner implements Signer {
   public readonly type: SignerType = SignerType.ViewOnly;
@@ -23,6 +24,10 @@ export class ViewOnlySigner implements Signer {
 
   public async getAddress(): Promise<string> {
     return this.address;
+  }
+
+  public async getAddressGroup(): Promise<AddressGroup> {
+    return Promise.resolve({});
   }
 
   public async initialize(): Promise<boolean> {

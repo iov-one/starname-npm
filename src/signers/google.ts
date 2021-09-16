@@ -9,6 +9,8 @@ import { Signer as GDriveSigner } from "@iov/gdrive-custodian";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { MismatchedAddressError, Signer } from "signers/signer";
 import { SignerType } from "signers/signerType";
+import { AddressGroup } from "types/addressGroup";
+import { WalletChains } from "types/walletChains";
 
 export class GoogleSigner implements Signer {
   public readonly type: SignerType = SignerType.Google;
@@ -26,6 +28,11 @@ export class GoogleSigner implements Signer {
   public async getAddress(): Promise<string> {
     const { proxySigner } = this;
     return proxySigner.getAddress();
+  }
+
+  public getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+    const { proxySigner } = this;
+    return proxySigner.getExtraAccounts(chains);
   }
 
   public initialize(): Promise<boolean> {
