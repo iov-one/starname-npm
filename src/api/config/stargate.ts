@@ -1,4 +1,4 @@
-import { ApiConfig } from "api/config";
+import { ApiConfig } from "../config";
 
 export const getStargateEndpoints = (
   apiUrl: string,

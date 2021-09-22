@@ -1,5 +1,4 @@
-import { Account } from "proto/types";
-
+import { Account } from "../../../proto/types";
 import { PaginationPage } from "./page";
 
 export interface ResourceAccountsResponse {

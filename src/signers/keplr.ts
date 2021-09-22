@@ -8,10 +8,11 @@ import {
 import { fromBase64 } from "@cosmjs/encoding";
 import { AccountData, Algo, OfflineSigner } from "@cosmjs/proto-signing";
 import { Keplr, Key } from "@keplr-wallet/types";
-import { MismatchedAddressError, Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { AddressGroup } from "../types/addressGroup";
+import { WalletChains } from "../types/walletChains";
+import { MismatchedAddressError, Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 interface GasPriceStep {
   readonly low: number;

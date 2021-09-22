@@ -1,5 +1,4 @@
-import { Delegation } from "types/userDelegationsResponse";
-
+import { Delegation } from "../../../types/userDelegationsResponse";
 import { PaginationPage } from "./page";
 
 export interface StargateUserDelegationsResponse {

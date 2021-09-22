@@ -1,4 +1,4 @@
-import { Domain } from "proto/types";
+import { Domain } from "../../../proto/types";
 
 export interface StargateDomainInfoResponse {
   domain: Domain;

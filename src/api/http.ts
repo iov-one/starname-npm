@@ -1,4 +1,4 @@
-import { Task } from "api/task";
+import { Task } from "./task";
 
 export interface BlockchainError {
   readonly message: string;

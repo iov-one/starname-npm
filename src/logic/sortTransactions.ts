@@ -1,4 +1,4 @@
-import { Transaction } from "types/transaction";
+import { Transaction } from "../types/transaction";
 
 export const sortTransactions = (
   tx1: Transaction,

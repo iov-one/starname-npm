@@ -1,25 +1,25 @@
-import { StarnameApi } from "api";
-import { FetchError } from "api/http";
-import { createWallet, randomName, setupTest } from "jest.setup";
-import { isTransactionSuccess } from "types/postTxResult";
-import { Wallet } from "wallet";
+import { StarnameClient } from "../api";
+import { FetchError } from "../api/http";
+import { createWallet, randomName, setupTest } from "../jest.setup";
+import { isTransactionSuccess } from "../types/postTxResult";
+import { Wallet } from "../wallet";
 
 jest.setTimeout(50000);
 
 describe("Stargate Api Implementation", (): void => {
   let wallet: Wallet;
-  const starnameApi = new StarnameApi();
+  const starnameClient = new StarnameClient();
 
   beforeAll(async (): Promise<void> => {
-    wallet = await createWallet(starnameApi);
-    await setupTest(starnameApi);
+    wallet = await createWallet(starnameClient);
+    await setupTest(starnameClient);
   });
 
   const testName = randomName();
 
   it("Throws when querying a starname if it does not exist", async (): Promise<void> => {
     // Register a starname
-    const starnameTask = starnameApi.getStarname(`*${testName}`);
+    const starnameTask = starnameClient.getStarname(`*${testName}`);
     await expect(starnameTask.run()).rejects.toEqual(
       new FetchError(
         3,
@@ -39,7 +39,7 @@ describe("Stargate Api Implementation", (): void => {
   it("Can query an existing starname correctly", async (): Promise<void> => {
     const address = await wallet.getAddress();
     // Register a starname
-    const starnameTask = starnameApi.getStarname(`*${testName}`);
+    const starnameTask = starnameClient.getStarname(`*${testName}`);
     const starname = await starnameTask.run();
     expect(starname.name).toEqual("");
     expect(starname.domain.name).toEqual(testName);

@@ -1,7 +1,7 @@
-import { StarnameApi } from "api";
-import { FAVORITE_ASSET_URI } from "constants/favoriteAssetUri";
-import { Resource } from "proto/types";
-import { Asset } from "types/asset";
+import { StarnameClient } from "../api";
+import { FAVORITE_ASSET_URI } from "../constants/favoriteAssetUri";
+import { Resource } from "../proto/types";
+import { Asset } from "../types/asset";
 
 export interface ResourceInfo {
   readonly id: string;
@@ -26,14 +26,14 @@ export const getPreferredAsset = (
 };
 
 export const getTargetsFromResources = (
-  starnameApi: StarnameApi,
+  starnameClient: StarnameClient,
   resources: ReadonlyArray<Resource> | null,
 ): ReadonlyArray<ResourceInfo> => {
   if (resources === null) return [];
   return resources
     .filter(({ uri }: Resource): boolean => uri.startsWith("asset:"))
     .map((item: Resource, index: number): ResourceInfo => {
-      const asset: Asset | undefined = starnameApi.getAssetByUri(item.uri);
+      const asset: Asset | undefined = starnameClient.getAssetByUri(item.uri);
       if (asset === undefined) {
         const { uri } = item;
         const symbol: string = uri.replace("asset:", "");

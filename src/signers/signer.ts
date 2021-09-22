@@ -1,8 +1,9 @@
 import { AminoSignResponse, StdSignDoc } from "@cosmjs/amino";
 import { OfflineSigner } from "@cosmjs/proto-signing";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { AddressGroup } from "../types/addressGroup";
+import { WalletChains } from "../types/walletChains";
+import { SignerType } from "./signerType";
 
 export interface Signer {
   readonly type: SignerType;

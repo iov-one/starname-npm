@@ -7,10 +7,11 @@ import {
 } from "@cosmjs/proto-signing";
 import { Signer as GDriveSigner } from "@iov/gdrive-custodian";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import { MismatchedAddressError, Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { AddressGroup } from "../types/addressGroup";
+import { WalletChains } from "../types/walletChains";
+import { MismatchedAddressError, Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 export class GoogleSigner implements Signer {
   public readonly type: SignerType = SignerType.Google;
@@ -72,7 +73,8 @@ export class GoogleSigner implements Signer {
     if (signerAddress !== (await this.getAddress())) {
       throw MismatchedAddressError;
     }
-    return proxySigner.sign(signDoc);
+
+    return proxySigner.sign(signDoc) as Promise<DirectSignResponse>;
   }
 
   public async signAlephMessage(
@@ -83,7 +85,8 @@ export class GoogleSigner implements Signer {
     if (signerAddress !== (await this.getAddress())) {
       throw MismatchedAddressError;
     }
-    return proxySigner.sign(signDoc);
+
+    return proxySigner.sign(signDoc) as Promise<AminoSignResponse>;
   }
 
   public getOfflineSigner(): OfflineSigner {

@@ -5,12 +5,12 @@ import {
   Msg,
 } from "@cosmjs/launchpad";
 import { Log } from "@cosmjs/launchpad/build/logs";
-import { StarnameApi } from "api";
-import { AminoType } from "types/aminoTypes";
-import { Amount } from "types/amount";
-import { Validator } from "types/delegationValidator";
-import { getValidator, reverseLookup } from "utils/getTransaction";
 
+import { StarnameClient } from "../api";
+import { AminoType } from "../types/aminoTypes";
+import { Amount } from "../types/amount";
+import { Validator } from "../types/delegationValidator";
+import { getValidator, reverseLookup } from "../utils/getTransaction";
 import { Starname as StarnameData } from "./resolveResponse";
 
 export interface BaseTx {
@@ -44,7 +44,7 @@ export interface Transaction {
 
 export class Transaction {
   static async fromRedelegateBaseTx(
-    starnameApi: StarnameApi,
+    starnameClient: StarnameClient,
     baseTx: BaseTx,
   ): Promise<Transaction> {
     const { value: stdTx } = baseTx.tx;
@@ -58,13 +58,13 @@ export class Transaction {
       throw new Error("cannot parse transaction");
     }
     return {
-      amount: starnameApi.toInternalCoins([value.amount]),
-      fee: starnameApi.toInternalCoins(fee.amount),
+      amount: starnameClient.toInternalCoins([value.amount]),
+      fee: starnameClient.toInternalCoins(fee.amount),
       data: {
-        src: await getValidator(starnameApi, value.validator_src_address),
-        dst: await getValidator(starnameApi, value.validator_dst_address),
+        src: await getValidator(starnameClient, value.validator_src_address),
+        dst: await getValidator(starnameClient, value.validator_dst_address),
       },
-      sender: await reverseLookup(starnameApi, value.delegator_address),
+      sender: await reverseLookup(starnameClient, value.delegator_address),
       id: baseTx.txhash,
       type: message.type as AminoType,
       time: new Date(baseTx.timestamp),
@@ -73,7 +73,7 @@ export class Transaction {
   }
 
   static async fromStakingBaseTx(
-    starnameApi: StarnameApi,
+    starnameClient: StarnameClient,
     baseTx: BaseTx,
   ): Promise<Transaction> {
     const { value: stdTx } = baseTx.tx;
@@ -87,10 +87,10 @@ export class Transaction {
       throw new Error("cannot parse transaction");
     }
     return {
-      amount: starnameApi.toInternalCoins([value.amount]),
-      fee: starnameApi.toInternalCoins(fee.amount),
-      data: await getValidator(starnameApi, value.validator_address),
-      sender: await reverseLookup(starnameApi, value.delegator_address),
+      amount: starnameClient.toInternalCoins([value.amount]),
+      fee: starnameClient.toInternalCoins(fee.amount),
+      data: await getValidator(starnameClient, value.validator_address),
+      sender: await reverseLookup(starnameClient, value.delegator_address),
       id: baseTx.txhash,
       type: message.type as AminoType,
       time: new Date(baseTx.timestamp),

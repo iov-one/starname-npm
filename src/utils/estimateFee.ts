@@ -1,7 +1,8 @@
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Coin, StdFee } from "@cosmjs/stargate";
-import { TxType } from "starnameRegistry";
-import { isKeyOf } from "utils/isKeyOf";
+
+import { TxType } from "../starnameRegistry";
+import { isKeyOf } from "../utils/isKeyOf";
 
 export interface GasConfig {
   readonly gasMap: GasMap;

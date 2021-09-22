@@ -1,13 +1,10 @@
 import { GoogleAuthInfo, Signer, SignerState } from "@iov/gdrive-custodian";
-import { VoidCallback } from "@iov/gdrive-custodian/lib/types/voidCallback";
 
-const assertSignerIsValid = (signer: Signer | undefined): void => {
-  if (signer === undefined) {
-    throw new Error(
-      "cannot call a method because the signer was never defined",
-    );
-  }
-};
+type VoidCallback = () => void;
+
+const SignerUndefinedError = new Error(
+  "signer is undefined, did you properly create this instance?",
+);
 
 export class GDriveCustodian {
   private authInfo?: GoogleAuthInfo;
@@ -34,7 +31,9 @@ export class GDriveCustodian {
 
   public attach(): Promise<void> {
     const { signer } = this;
-    assertSignerIsValid(signer);
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
     return signer.attach();
   }
 
@@ -42,37 +41,41 @@ export class GDriveCustodian {
     listener: (state: SignerState, data?: any) => void,
   ): void {
     const { signer } = this;
-    assertSignerIsValid(signer);
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
     signer.setStateChangeListener(listener);
   }
 
   public removeStateChangeListener(): void {
     const { signer } = this;
-    assertSignerIsValid(signer);
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
     signer.removeStateChangeListener();
   }
 
   public connect(button: HTMLElement): VoidCallback {
     const { signer } = this;
-    assertSignerIsValid(signer);
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
     return signer.connect(button);
-  }
-
-  public disconnect(): void {
-    const { signer } = this;
-    assertSignerIsValid(signer);
-    return signer.disconnect();
   }
 
   public detach(): void {
     const { signer } = this;
-    assertSignerIsValid(signer);
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
     return signer.detach();
   }
 
   public getSigner(): Signer {
     const { signer } = this;
-    assertSignerIsValid(signer);
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
     return signer;
   }
 

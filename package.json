@@ -8,7 +8,7 @@
     "prebuild": "yarn gen-proto",
     "pregen-proto": "rm -rf src/proto && mkdir src/proto",
     "gen-proto": "protoc --proto_path=proto --proto_path=proto/third-party --ts_proto_opt=esModuleInterop=true --ts_proto_out=src/proto proto/tx.proto",
-    "build": "tsc && babel lib -d lib"
+    "build": "tsc"
   },
   "author": "",
   "license": "ISC",

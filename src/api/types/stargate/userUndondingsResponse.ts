@@ -1,5 +1,4 @@
-import { Unbonding } from "types/unbondingsResponse";
-
+import { Unbonding } from "../../../types/unbondingsResponse";
 import { PaginationPage } from "./page";
 
 export interface StargateUserUnbondingsResponse {

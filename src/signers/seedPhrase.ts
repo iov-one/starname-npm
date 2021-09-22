@@ -11,12 +11,13 @@ import {
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
-import { hdPath } from "constants/hdPath";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import { MismatchedAddressError, Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { hdPath } from "../constants/hdPath";
+import { AddressGroup } from "../types/addressGroup";
+import { WalletChains } from "../types/walletChains";
+import { MismatchedAddressError, Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 export class SeedPhraseSigner implements Signer {
   readonly type = SignerType.SeedPhrase;
