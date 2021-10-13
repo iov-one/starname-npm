@@ -1,10 +1,10 @@
-import starnameAssets from "@iov/asset-directory/starname/assets.json";
+import assets from "@iov/asset-directory";
 
-import { StarnameClient } from "../api";
-import { Task } from "../api/task";
 import { Account, Resource } from "../proto/types";
+import { StarnameClient } from "../starnameClient";
+import { Task } from "../starnameClient/task";
 
-const iovStarnameUri = starnameAssets.find(
+const iovStarnameUri = assets.find(
   (asset: any): boolean => asset.symbol === "IOV",
 );
 

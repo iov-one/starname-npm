@@ -78,6 +78,7 @@ export class StargateTransaction {
     const {
       auth_info: { fee },
     } = tx;
+    console.log(baseTx);
     if (!isMsgSendEncodeObject(message))
       throw new Error("cannot parse transaction");
 

@@ -1,7 +1,7 @@
 import "isomorphic-fetch";
 
-import { StarnameClient } from "./api";
 import { SeedPhraseSigner } from "./signers/seedPhrase";
+import { StarnameClient } from "./starnameClient";
 import { Wallet } from "./wallet";
 
 export const rpcUrl = "http://localhost:26657";
@@ -22,12 +22,11 @@ export const setupTest = async (
       },
     } /* tokens */,
     {
-      denom: "uiov",
       logo: "",
       "starname-uri": "",
-      "caip-19": "",
       name: "IOV",
       symbol: "IOV",
+      "trustwallet-uid": null,
     } /* mainAsset */,
     /* broker */
   );

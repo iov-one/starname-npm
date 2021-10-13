@@ -1,7 +1,5 @@
-export type GenericQuery = { [key: string]: GenericQuery | string | undefined };
-
 const flatten = (
-  query: GenericQuery | string,
+  query: Record<string, any> | string,
   parentKey?: string,
 ): {
   [key: string]: string;
@@ -16,7 +14,7 @@ const flatten = (
   return entries.reduce(
     (
       result: { [key: string]: string },
-      [key, value]: [string, GenericQuery | string | undefined],
+      [key, value]: [string, Record<string, any> | string | undefined],
     ): { [key: string]: string } => {
       if (value === undefined) return result;
       if (typeof value !== "string") {
@@ -32,16 +30,24 @@ const flatten = (
     {},
   );
 };
-export const toQueryString = (obj: GenericQuery): string => {
+
+export const toStargateTxsQuery = (obj: Record<string, any>): string => {
   const flat: { [key: string]: string | undefined } = flatten(obj);
   const items: ReadonlyArray<[string, string | undefined]> =
     Object.entries(flat);
-  return items
-    .filter(([, value]: [string, string | undefined]) => {
-      return value !== undefined;
-    })
-    .map(([key, value]: [string, string | undefined]): string =>
-      [key, value].join("="),
-    )
-    .join("&");
+  return (
+    "events=" +
+    items
+      .filter(([, value]: [string, string | undefined]) => {
+        return value !== undefined;
+      })
+      .map(([key, value]: [string, string | undefined]): [string, string] => [
+        key,
+        value as string,
+      ])
+      .map(([key, value]: [string, string]): string =>
+        [key, `'${value}'`].join("="),
+      )
+      .join("&events=")
+  );
 };

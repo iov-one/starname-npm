@@ -1,4 +1,4 @@
-import { FetchError } from "../api/http";
+import { FetchError } from "../starnameClient/http";
 
 export interface Task<T> {
   run(): Promise<T>;

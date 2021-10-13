@@ -1,4 +1,4 @@
-import { StarnameClient } from "../api";
+import { StarnameClient } from "../starnameClient";
 import { Validator } from "../types/delegationValidator";
 
 const reverseLookup = async (

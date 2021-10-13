@@ -10,8 +10,6 @@ import {
 } from "cosmjs-types/cosmos/staking/v1beta1/tx";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
-import { StarnameClient } from "./api";
-import { Task } from "./api/task";
 import { TxRejected } from "./constants/errorCodes";
 import { FAVORITE_ASSET_URI } from "./constants/favoriteAssetUri";
 import {
@@ -29,19 +27,21 @@ import {
 import { Resource } from "./proto/types";
 import { Signer } from "./signers/signer";
 import { SignerType } from "./signers/signerType";
+import { StarnameClient } from "./starnameClient";
+import { Task } from "./starnameClient/task";
 import { StarnameRegistry, TxType } from "./starnameRegistry";
 import { AddressGroup } from "./types/addressGroup";
 import { aminoTypes } from "./types/aminoTypes";
 import { ResponsePage } from "./types/apiPage";
+import { AssetResource } from "./types/assetResource";
 import { Balance } from "./types/balance";
+import { ChainMap } from "./types/chainMap";
 import { MsgsAndMemo } from "./types/msgsAndMemo";
 import { Pager } from "./types/pager";
 import { PostTxResult } from "./types/postTxResult";
-import { ResourceInfo } from "./types/resourceInfo";
 import { TokenLike } from "./types/tokenLike";
 import { Transaction } from "./types/transaction";
 import { Tx } from "./types/tx";
-import { WalletChains } from "./types/walletChains";
 import { estimateFee, GasConfig } from "./utils/estimateFee";
 
 export interface WalletOptions {
@@ -95,6 +95,7 @@ export class Wallet {
     msgsAndMemo: MsgsAndMemo,
   ): Promise<TxRaw> {
     const { messages, memo } = msgsAndMemo;
+    const { starnameClient } = this;
     const address = await this.getAddress();
     const fee = estimateFee(messages, this.gasConfig);
     const registry = new StarnameRegistry();
@@ -107,7 +108,16 @@ export class Wallet {
       }),
     });
 
-    return await client.sign(address, messages, fee, memo);
+    const account = await starnameClient.getAccount(address);
+    if (!account) {
+      throw new Error(`could not find account for ${address}`);
+    }
+
+    return await client.sign(address, messages, fee, memo, {
+      accountNumber: account.accountNumber,
+      sequence: account.sequence,
+      chainId: starnameClient.getChainId(),
+    });
   }
 
   public async signMsgsAndMemo(msgsAndMemo: MsgsAndMemo): Promise<TxRaw> {
@@ -125,7 +135,7 @@ export class Wallet {
     return signer.getAddress();
   }
 
-  private getSigner(): Signer {
+  public getSigner(): Signer {
     return this.signer;
   }
 
@@ -185,7 +195,7 @@ export class Wallet {
 
   public async replaceDomainResources(
     domain: string,
-    targets: ReadonlyArray<ResourceInfo>,
+    targets: ReadonlyArray<AssetResource>,
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
   ): Promise<PostTxResult> {
@@ -197,7 +207,7 @@ export class Wallet {
         name: "",
         newResources: [
           ...targets.map(
-            ({ asset, address }: ResourceInfo): Resource => ({
+            ({ asset, address }: AssetResource): Resource => ({
               uri: asset["starname-uri"],
               resource: address,
             }),
@@ -233,7 +243,7 @@ export class Wallet {
   public async replaceAccountResources(
     name: string,
     domain: string,
-    targets: ReadonlyArray<ResourceInfo>,
+    targets: ReadonlyArray<AssetResource>,
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
   ): Promise<PostTxResult> {
@@ -245,7 +255,7 @@ export class Wallet {
         name: name,
         newResources: this.sanitizeResources([
           ...targets.map(
-            ({ asset, address }: ResourceInfo): Resource => ({
+            ({ asset, address }: AssetResource): Resource => ({
               uri: asset["starname-uri"],
               resource: address,
             }),
@@ -292,7 +302,7 @@ export class Wallet {
 
   private createResourcesFromAddressGroup = (
     addressGroup: AddressGroup,
-    chains: WalletChains,
+    chains: ChainMap,
   ): Array<Resource> => {
     return Object.keys(addressGroup).map((chainId) => {
       const symbol = chains[chainId].symbol;
@@ -305,7 +315,7 @@ export class Wallet {
   };
 
   public getOtherChainResources = async (
-    chains: WalletChains,
+    chains: ChainMap,
   ): Promise<Array<Resource>> => {
     const { signer } = this;
 
@@ -331,7 +341,7 @@ export class Wallet {
   public async registerAccount(
     name: string,
     domain: string,
-    chains?: WalletChains,
+    chains?: ChainMap,
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
     const resources: Array<Resource> = [];

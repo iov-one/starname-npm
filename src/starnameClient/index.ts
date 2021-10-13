@@ -1,14 +1,13 @@
 import { Coin } from "@cosmjs/amino";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Account as CosmosAccount, StargateClient } from "@cosmjs/stargate";
-import assetsStarname from "@iov/asset-directory/starname/assets.json";
+import assets, { Asset } from "@iov/asset-directory";
 
 import { sortTransactions } from "../logic/sortTransactions";
 import { Account, Domain } from "../proto/types";
 import { TxType } from "../starnameRegistry";
 import { Amount, toInternalCoins } from "../types/amount";
 import { ResponsePage } from "../types/apiPage";
-import { Asset } from "../types/asset";
 import { Balance } from "../types/balance";
 import { ValidatorLogoResponse } from "../types/delegationValidator";
 import { Fees, transformFeesResponse } from "../types/fees";
@@ -25,7 +24,7 @@ import { Transaction } from "../types/transaction";
 import { Unbonding } from "../types/unbondingsResponse";
 import { Delegation } from "../types/userDelegationsResponse";
 import { getIOVAddressForStarname } from "../utils/addressResolver";
-import { GenericQuery, toQueryString } from "../utils/queryString";
+import { toStargateTxsQuery } from "../utils/toStargateTxsQuery";
 import { ApiConfig } from "./config";
 import { getStargateEndpoints } from "./config/stargate";
 import { Get } from "./http";
@@ -77,11 +76,11 @@ export class StarnameClient {
     this.settings = await this.loadSettings();
     this.fees = await this.loadFees();
     this.mainAsset = mainAsset;
-    const assets: ReadonlyArray<any> = [
-      ...(assetsStarname as ReadonlyArray<any>),
-    ].sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
-      n1.localeCompare(n2),
-    );
+    const filteredAssets: ReadonlyArray<Asset> = assets
+      .slice()
+      .sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
+        n1.localeCompare(n2),
+      );
     if (broker) {
       try {
         this.broker = await Task.toPromise(
@@ -91,7 +90,7 @@ export class StarnameClient {
         this.broker = "";
       }
     }
-    this.assets = assets.reduce(
+    this.assets = filteredAssets.reduce(
       (
         previousValue: Record<string, Asset>,
         asset: Asset,
@@ -254,6 +253,25 @@ export class StarnameClient {
       (pageSize ? `?pagination.limit=${pageSize}` : "") +
       (pageNumber ? `&pagination.offset=${pageNumber}` : "")
     );
+  };
+
+  public getAccountsWithResource = (
+    uri: string,
+    resource: string,
+  ): Task<ReadonlyArray<Account>> => {
+    const task = Get<ResourceAccountsResponse>(
+      this.api.resourceAccounts(uri, resource),
+    );
+
+    return {
+      abort: () => {
+        task.abort();
+      },
+      run: async (): Promise<ReadonlyArray<Account>> => {
+        const { accounts } = await task.run();
+        return accounts;
+      },
+    };
   };
 
   public getAccountsWithOwner = (
@@ -435,10 +453,10 @@ export class StarnameClient {
   private getTransactionsWithQuery(
     starnameClient: StarnameClient,
     address: string,
-    query: GenericQuery,
+    query: Record<string, any>,
     page: Pager,
   ): Task<ResponsePage<Transaction>> {
-    const queryString: string = toQueryString({
+    const queryString: string = toStargateTxsQuery({
       ...query,
     });
     const url: string = this.api.queryTransactions + `?${queryString}`;
@@ -680,7 +698,16 @@ export class StarnameClient {
   };
 
   public getMainToken(): TokenLike {
-    const { denom } = this.mainAsset;
-    return this.tokens[denom];
+    const { tokens } = this;
+    const { symbol } = this.mainAsset;
+    if (symbol === undefined) throw new Error("StarnameClient not initialized");
+    const found = Object.values(tokens).find((token: TokenLike): boolean => {
+      return token.ticker.toLowerCase() === symbol.toLowerCase();
+    });
+    if (found !== undefined) {
+      return found;
+    } else {
+      throw new Error("cannot find main token");
+    }
   }
 }

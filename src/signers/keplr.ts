@@ -10,7 +10,7 @@ import { AccountData, Algo, OfflineSigner } from "@cosmjs/proto-signing";
 import { Keplr, Key } from "@keplr-wallet/types";
 
 import { AddressGroup } from "../types/addressGroup";
-import { WalletChains } from "../types/walletChains";
+import { ChainMap } from "../types/chainMap";
 import { MismatchedAddressError, Signer } from "./signer";
 import { SignerType } from "./signerType";
 
@@ -57,7 +57,7 @@ export class KeplrSigner implements Signer {
     return address;
   }
 
-  public async getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+  public async getAddressGroup(chains: ChainMap): Promise<AddressGroup> {
     const { keplr } = this;
     // enable these chains first
     if (keplr === null) throw new Error("Keplr extension not initialized");

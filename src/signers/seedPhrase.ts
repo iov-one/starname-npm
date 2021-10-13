@@ -15,7 +15,7 @@ import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { hdPath } from "../constants/hdPath";
 import { AddressGroup } from "../types/addressGroup";
-import { WalletChains } from "../types/walletChains";
+import { ChainMap } from "../types/chainMap";
 import { MismatchedAddressError, Signer } from "./signer";
 import { SignerType } from "./signerType";
 
@@ -37,7 +37,7 @@ export class SeedPhraseSigner implements Signer {
     return accounts[0].address;
   }
 
-  public async getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+  public async getAddressGroup(chains: ChainMap): Promise<AddressGroup> {
     const chainIds = Object.keys(chains);
     const chainProps = Object.values(chains);
 

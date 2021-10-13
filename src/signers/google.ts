@@ -9,7 +9,7 @@ import { Signer as GDriveSigner } from "@iov/gdrive-custodian";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { AddressGroup } from "../types/addressGroup";
-import { WalletChains } from "../types/walletChains";
+import { ChainMap } from "../types/chainMap";
 import { MismatchedAddressError, Signer } from "./signer";
 import { SignerType } from "./signerType";
 
@@ -31,7 +31,7 @@ export class GoogleSigner implements Signer {
     return proxySigner.getAddress();
   }
 
-  public getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+  public getAddressGroup(chains: ChainMap): Promise<AddressGroup> {
     const { proxySigner } = this;
     return proxySigner.getExtraAccounts(chains);
   }

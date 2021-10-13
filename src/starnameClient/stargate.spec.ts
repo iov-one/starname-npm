@@ -1,6 +1,6 @@
-import { StarnameClient } from "../api";
-import { FetchError } from "../api/http";
 import { createWallet, randomName, setupTest } from "../jest.setup";
+import { StarnameClient } from "../starnameClient";
+import { FetchError } from "../starnameClient/http";
 import { isTransactionSuccess } from "../types/postTxResult";
 import { Wallet } from "../wallet";
 

@@ -6,7 +6,7 @@ import {
 } from "@cosmjs/launchpad";
 import { Log } from "@cosmjs/launchpad/build/logs";
 
-import { StarnameClient } from "../api";
+import { StarnameClient } from "../starnameClient";
 import { AminoType } from "../types/aminoTypes";
 import { Amount } from "../types/amount";
 import { Validator } from "../types/delegationValidator";

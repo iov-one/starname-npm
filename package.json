@@ -44,7 +44,7 @@
     "@cosmjs/crypto": "^0.26.0",
     "@cosmjs/proto-signing": "^0.26.0",
     "@cosmjs/stargate": "^0.26.0",
-    "@iov/asset-directory": "^3.2.1",
+    "@iov/asset-directory": "^4.0.1",
     "@iov/gdrive-custodian": "^1.2.1",
     "@iov/ledger-iovns": "^2.1.1",
     "@keplr-wallet/types": "^0.8.11",
@@ -52,6 +52,7 @@
     "@ledgerhq/hw-transport-webusb": "^6.6.0",
     "@types/secp256k1": "^4.0.3",
     "google-protobuf": "^3.18.0-rc.2",
+    "nested-objects-util": "^1.1.2",
     "secp256k1": "^4.0.2",
     "ts-proto": "^1.82.5"
   },
