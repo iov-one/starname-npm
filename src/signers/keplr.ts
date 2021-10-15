@@ -8,10 +8,11 @@ import {
 import { fromBase64 } from "@cosmjs/encoding";
 import { AccountData, Algo, OfflineSigner } from "@cosmjs/proto-signing";
 import { Keplr, Key } from "@keplr-wallet/types";
-import { MismatchedAddressError, Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { AddressGroup } from "../types/addressGroup";
+import { ChainMap } from "../types/chainMap";
+import { MismatchedAddressError, Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 interface GasPriceStep {
   readonly low: number;
@@ -56,7 +57,7 @@ export class KeplrSigner implements Signer {
     return address;
   }
 
-  public async getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+  public async getAddressGroup(chains: ChainMap): Promise<AddressGroup> {
     const { keplr } = this;
     // enable these chains first
     if (keplr === null) throw new Error("Keplr extension not initialized");

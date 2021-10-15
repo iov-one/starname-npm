@@ -1,9 +1,10 @@
-import starnameAssets from "@iov/asset-directory/starname/assets.json";
-import { StarnameApi } from "api";
-import { Task } from "api/task";
-import { Account, Resource } from "proto/types";
+import assets from "@iov/asset-directory";
 
-const iovStarnameUri = starnameAssets.find(
+import { Account, Resource } from "../proto/types";
+import { StarnameClient } from "../starnameClient";
+import { Task } from "../starnameClient/task";
+
+const iovStarnameUri = assets.find(
   (asset: any): boolean => asset.symbol === "IOV",
 );
 
@@ -20,10 +21,10 @@ export const NoIOVAddressLinkedToStarnameError = {
 };
 
 export const getIOVAddressForStarname = (
-  api: StarnameApi,
+  client: StarnameClient,
   name: string,
 ): Task<string> => {
-  const task: Task<Account> = api.resolveStarname(name);
+  const task: Task<Account> = client.resolveStarname(name);
 
   return {
     run: async (): Promise<string> => {

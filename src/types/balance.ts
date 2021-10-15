@@ -1,4 +1,4 @@
-import { Amount } from "types/amount";
+import { Amount } from "./amount";
 
 export interface Balance {
   readonly address: string;

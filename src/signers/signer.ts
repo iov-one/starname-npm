@@ -1,8 +1,9 @@
 import { AminoSignResponse, StdSignDoc } from "@cosmjs/amino";
 import { OfflineSigner } from "@cosmjs/proto-signing";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { AddressGroup } from "../types/addressGroup";
+import { ChainMap } from "../types/chainMap";
+import { SignerType } from "./signerType";
 
 export interface Signer {
   readonly type: SignerType;
@@ -11,7 +12,7 @@ export interface Signer {
 
   getAddress(): Promise<string>;
 
-  getAddressGroup(chains: WalletChains): Promise<AddressGroup>;
+  getAddressGroup(chains: ChainMap): Promise<AddressGroup>;
 
   getPublicKey(): Promise<string>;
 

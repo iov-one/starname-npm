@@ -1,57 +1,56 @@
 import { Coin } from "@cosmjs/amino";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Account as CosmosAccount, StargateClient } from "@cosmjs/stargate";
-import assetsStarname from "@iov/asset-directory/starname/assets.json";
-import { ApiConfig } from "api/config";
-import { getStargateEndpoints } from "api/config/stargate";
-import { Get } from "api/http";
-import { Task } from "api/task";
-import { CosmosAccountResponse } from "api/types/stargate/accountResponse";
-import { StargateBalanceResponse } from "api/types/stargate/balanceResponse";
-import { StargateDomainInfoResponse } from "api/types/stargate/domainInfoResponse";
-import { StargateFeesResponse } from "api/types/stargate/feesResponse";
-import { StargateResolveResponse } from "api/types/stargate/resolveResponse";
-import { ResourceAccountsResponse } from "api/types/stargate/resourceAccountsResponse";
-import { StargateRewardsResponse } from "api/types/stargate/rewardsResponse";
-import {
-  StargateBaseTx,
-  StargateSearchTxResponse,
-} from "api/types/stargate/searchTxResponse";
-import { StargateTransaction } from "api/types/stargate/transaction";
-import queries, { StargateTxQuery } from "api/types/stargate/txQuery";
-import { StargateUserDelegationsResponse } from "api/types/stargate/userDelegationsResponse";
-import { StargateUserUnbondingsResponse } from "api/types/stargate/userUndondingsResponse";
-import {
-  StargateValidator,
-  StargateValidatorResponse,
-} from "api/types/stargate/validatorResponse";
-import { StargateValidatorsResponse } from "api/types/stargate/validatorsResponse";
-import { stargateToQueryString } from "api/utils/stargateToQueryString";
-import { sortTransactions } from "logic/sortTransactions";
-import { Account, Domain } from "proto/types";
-import { TxType } from "starnameRegistry";
-import { Amount, toInternalCoins } from "types/amount";
-import { ResponsePage } from "types/apiPage";
-import { Asset } from "types/asset";
-import { Balance } from "types/balance";
-import { ValidatorLogoResponse } from "types/delegationValidator";
-import { Fees, transformFeesResponse } from "types/fees";
-import { Pager } from "types/pager";
-import { PostTxResult } from "types/postTxResult";
-import { Starname } from "types/resolveResponse";
+import assets, { Asset } from "@iov/asset-directory";
+
+import { sortTransactions } from "../logic/sortTransactions";
+import { Account, Domain } from "../proto/types";
+import { TxType } from "../starnameRegistry";
+import { Amount, toInternalCoins } from "../types/amount";
+import { ResponsePage } from "../types/apiPage";
+import { Balance } from "../types/balance";
+import { ValidatorLogoResponse } from "../types/delegationValidator";
+import { Fees, transformFeesResponse } from "../types/fees";
+import { Pager } from "../types/pager";
+import { PostTxResult } from "../types/postTxResult";
+import { Starname } from "../types/resolveResponse";
 import {
   Settings,
   StargateSettingsResponse,
   transformSettingsResponse,
-} from "types/settings";
-import { TokenLike } from "types/tokenLike";
-import { Transaction } from "types/transaction";
-import { Unbonding } from "types/unbondingsResponse";
-import { Delegation } from "types/userDelegationsResponse";
-import { getIOVAddressForStarname } from "utils/addressResolver";
-import { GenericQuery } from "utils/queryString";
+} from "../types/settings";
+import { TokenLike } from "../types/tokenLike";
+import { Transaction } from "../types/transaction";
+import { Unbonding } from "../types/unbondingsResponse";
+import { Delegation } from "../types/userDelegationsResponse";
+import { getIOVAddressForStarname } from "../utils/addressResolver";
+import { toStargateTxsQuery } from "../utils/toStargateTxsQuery";
+import { ApiConfig } from "./config";
+import { getStargateEndpoints } from "./config/stargate";
+import { Get } from "./http";
+import { Task } from "./task";
+import { CosmosAccountResponse } from "./types/stargate/accountResponse";
+import { StargateBalanceResponse } from "./types/stargate/balanceResponse";
+import { StargateDomainInfoResponse } from "./types/stargate/domainInfoResponse";
+import { StargateFeesResponse } from "./types/stargate/feesResponse";
+import { StargateResolveResponse } from "./types/stargate/resolveResponse";
+import { ResourceAccountsResponse } from "./types/stargate/resourceAccountsResponse";
+import { StargateRewardsResponse } from "./types/stargate/rewardsResponse";
+import {
+  StargateBaseTx,
+  StargateSearchTxResponse,
+} from "./types/stargate/searchTxResponse";
+import { StargateTransaction } from "./types/stargate/transaction";
+import queries, { StargateTxQuery } from "./types/stargate/txQuery";
+import { StargateUserDelegationsResponse } from "./types/stargate/userDelegationsResponse";
+import { StargateUserUnbondingsResponse } from "./types/stargate/userUndondingsResponse";
+import {
+  StargateValidator,
+  StargateValidatorResponse,
+} from "./types/stargate/validatorResponse";
+import { StargateValidatorsResponse } from "./types/stargate/validatorsResponse";
 
-export class StarnameApi {
+export class StarnameClient {
   private client: StargateClient | null = null;
   private settings: Settings = {} as Settings;
   private tokens: Record<string, TokenLike> = {};
@@ -72,15 +71,16 @@ export class StarnameApi {
     broker?: string,
   ): Promise<void> {
     this.api = getStargateEndpoints(apiUrl, rpcUrl, validatorsInfoUrl);
+    // FIXME: use the asset directory here right?
     this.tokens = tokens;
     this.settings = await this.loadSettings();
     this.fees = await this.loadFees();
     this.mainAsset = mainAsset;
-    const assets: ReadonlyArray<any> = [
-      ...(assetsStarname as ReadonlyArray<any>),
-    ].sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
-      n1.localeCompare(n2),
-    );
+    const filteredAssets: ReadonlyArray<Asset> = assets
+      .slice()
+      .sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
+        n1.localeCompare(n2),
+      );
     if (broker) {
       try {
         this.broker = await Task.toPromise(
@@ -90,7 +90,7 @@ export class StarnameApi {
         this.broker = "";
       }
     }
-    this.assets = assets.reduce(
+    this.assets = filteredAssets.reduce(
       (
         previousValue: Record<string, Asset>,
         asset: Asset,
@@ -109,6 +109,7 @@ export class StarnameApi {
       this.api.config,
     );
     const response = await task.run();
+
     return transformSettingsResponse(response.config);
   };
 
@@ -254,6 +255,25 @@ export class StarnameApi {
     );
   };
 
+  public getAccountsWithResource = (
+    uri: string,
+    resource: string,
+  ): Task<ReadonlyArray<Account>> => {
+    const task = Get<ResourceAccountsResponse>(
+      this.api.resourceAccounts(uri, resource),
+    );
+
+    return {
+      abort: () => {
+        task.abort();
+      },
+      run: async (): Promise<ReadonlyArray<Account>> => {
+        const { accounts } = await task.run();
+        return accounts;
+      },
+    };
+  };
+
   public getAccountsWithOwner = (
     owner: string,
     pageSize?: number,
@@ -366,7 +386,7 @@ export class StarnameApi {
     };
   }
 
-  public rpcPostTx = async (signedTx: Uint8Array): Promise<PostTxResult> => {
+  public broadcastTx = async (signedTx: Uint8Array): Promise<PostTxResult> => {
     const client: StargateClient | null = this.client;
     if (client !== null) {
       return client.broadcastTx(signedTx);
@@ -431,12 +451,12 @@ export class StarnameApi {
 
   // FIXME: Pagination incomplete
   private getTransactionsWithQuery(
-    starnameApi: StarnameApi,
+    starnameClient: StarnameClient,
     address: string,
-    query: GenericQuery,
+    query: Record<string, any>,
     page: Pager,
   ): Task<ResponsePage<Transaction>> {
-    const queryString: string = stargateToQueryString({
+    const queryString: string = toStargateTxsQuery({
       ...query,
     });
     const url: string = this.api.queryTransactions + `?${queryString}`;
@@ -461,7 +481,7 @@ export class StarnameApi {
             ? (
                 await Promise.all(
                   convertedTxs.map(
-                    this.toInternalTransaction(starnameApi, address),
+                    this.toInternalTransaction(starnameClient, address),
                   ),
                 )
               ).sort(sortTransactions)
@@ -484,7 +504,7 @@ export class StarnameApi {
       // if should resemble encode object, so that we can further pass it
       // to check type of tx by encodeObject check functions
       const typeConvertedMsgs = messages.map((msg) =>
-        StarnameApi.convertMessageType(msg),
+        StarnameClient.convertMessageType(msg),
       );
       // Inject modified message ( structure) to body
       // Then other fields from tx
@@ -503,7 +523,7 @@ export class StarnameApi {
   }
 
   public toInternalTransaction(
-    starnameApi: StarnameApi,
+    starnameClient: StarnameClient,
     address: string,
   ): (baseTx: StargateBaseTx<EncodeObject>) => Promise<Transaction> {
     return async (
@@ -518,36 +538,36 @@ export class StarnameApi {
       switch (message.typeUrl) {
         case TxType.Bank.Send:
           return StargateTransaction.fromSendBaseTx(
-            starnameApi,
+            starnameClient,
             baseTx,
             address,
           );
         case TxType.Starname.RegisterAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.TransferAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.DeleteAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.RenewAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.RenewDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.ReplaceAccountMetadata:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.ReplaceAccountResources:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.RegisterDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.TransferDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Starname.DeleteDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
         case TxType.Staking.Delegate:
-          return StargateTransaction.fromStakingBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStakingBaseTx(starnameClient, baseTx);
         case TxType.Staking.Undelegate:
-          return StargateTransaction.fromStakingBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStakingBaseTx(starnameClient, baseTx);
         case TxType.Staking.BeginRedelegate:
-          return StargateTransaction.fromStakingBaseTx(starnameApi, baseTx);
+          return StargateTransaction.fromStakingBaseTx(starnameClient, baseTx);
 
         default:
           throw new Error("unknown transaction type: " + message.typeUrl);
@@ -678,7 +698,16 @@ export class StarnameApi {
   };
 
   public getMainToken(): TokenLike {
-    const { denom } = this.mainAsset;
-    return this.tokens[denom];
+    const { tokens } = this;
+    const { symbol } = this.mainAsset;
+    if (symbol === undefined) throw new Error("StarnameClient not initialized");
+    const found = Object.values(tokens).find((token: TokenLike): boolean => {
+      return token.ticker.toLowerCase() === symbol.toLowerCase();
+    });
+    if (found !== undefined) {
+      return found;
+    } else {
+      throw new Error("cannot find main token");
+    }
   }
 }

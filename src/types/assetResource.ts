@@ -1,9 +1,10 @@
-import { StarnameApi } from "api";
-import { FAVORITE_ASSET_URI } from "constants/favoriteAssetUri";
-import { Resource } from "proto/types";
-import { Asset } from "types/asset";
+import { Asset } from "@iov/asset-directory";
 
-export interface ResourceInfo {
+import { FAVORITE_ASSET_URI } from "../constants/favoriteAssetUri";
+import { Resource } from "../proto/types";
+import { StarnameClient } from "../starnameClient";
+
+export interface AssetResource {
   readonly id: string;
   readonly address: string;
   readonly asset: Asset;
@@ -26,14 +27,14 @@ export const getPreferredAsset = (
 };
 
 export const getTargetsFromResources = (
-  starnameApi: StarnameApi,
+  starnameClient: StarnameClient,
   resources: ReadonlyArray<Resource> | null,
-): ReadonlyArray<ResourceInfo> => {
+): ReadonlyArray<AssetResource> => {
   if (resources === null) return [];
   return resources
     .filter(({ uri }: Resource): boolean => uri.startsWith("asset:"))
-    .map((item: Resource, index: number): ResourceInfo => {
-      const asset: Asset | undefined = starnameApi.getAssetByUri(item.uri);
+    .map((item: Resource, index: number): AssetResource => {
+      const asset: Asset | undefined = starnameClient.getAssetByUri(item.uri);
       if (asset === undefined) {
         const { uri } = item;
         const symbol: string = uri.replace("asset:", "");
@@ -44,8 +45,8 @@ export const getTargetsFromResources = (
             "starname-uri": uri,
             name: symbol.toUpperCase(),
             symbol: symbol.toUpperCase(),
-            denom: "u" + symbol.toLowerCase(),
             logo: "",
+            "trustwallet-uid": null,
           },
         };
       } else {

@@ -1,14 +1,16 @@
 import "isomorphic-fetch";
 
-import { StarnameApi } from "api";
-import { SeedPhraseSigner } from "signers/seedPhrase";
-import { Wallet } from "wallet";
+import { SeedPhraseSigner } from "./signers/seedPhrase";
+import { StarnameClient } from "./starnameClient";
+import { Wallet } from "./wallet";
 
 export const rpcUrl = "http://localhost:26657";
 export const apiUrl = "http://localhost:1317";
 
-export const setupTest = async (starnameApi: StarnameApi): Promise<void> => {
-  await starnameApi.initialize(
+export const setupTest = async (
+  starnameClient: StarnameClient,
+): Promise<void> => {
+  await starnameClient.initialize(
     rpcUrl,
     apiUrl,
     "" /* validatorsInfoUrl */,
@@ -20,12 +22,11 @@ export const setupTest = async (starnameApi: StarnameApi): Promise<void> => {
       },
     } /* tokens */,
     {
-      denom: "uiov",
       logo: "",
       "starname-uri": "",
-      "caip-19": "",
       name: "IOV",
       symbol: "IOV",
+      "trustwallet-uid": null,
     } /* mainAsset */,
     /* broker */
   );
@@ -45,13 +46,12 @@ export const addTokensWithFaucet = async (address: string): Promise<void> => {
 };
 
 export const createWallet = async (
-  starnameApi: StarnameApi,
+  starnameClient: StarnameClient,
 ): Promise<Wallet> => {
   const signer = new SeedPhraseSigner();
   await signer.random();
   const wallet = new Wallet(signer, {
-    starnameApi: starnameApi,
-    rpcUrl: rpcUrl,
+    starnameClient: starnameClient,
     gasConfig: {
       gasMap: {
         "/starnamed.x.starname.v1beta1.MsgRenewDomain": 250000,

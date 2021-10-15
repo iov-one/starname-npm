@@ -1,5 +1,6 @@
 import { Coin as CosmjsCoin } from "@cosmjs/launchpad";
-import { TokenLike } from "types/tokenLike";
+
+import { TokenLike } from "./tokenLike";
 
 export interface CoinLike {
   amount: number;

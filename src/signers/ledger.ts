@@ -16,9 +16,10 @@ import {
 import Transport from "@ledgerhq/hw-transport";
 import TransportWebUSB from "@ledgerhq/hw-transport-webusb";
 import { signatureImport } from "secp256k1";
-import { MismatchedAddressError, Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
+
+import { AddressGroup } from "../types/addressGroup";
+import { MismatchedAddressError, Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 export const DeviceNotConnected = new Error(
   "Please make sure your device is connected, and you have opened the IOV application.",

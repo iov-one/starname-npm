@@ -4,6 +4,7 @@ import {
   MsgDelegate,
   MsgUndelegate,
 } from "cosmjs-types/cosmos/staking/v1beta1/tx";
+
 import {
   MsgDeleteAccount,
   MsgDeleteDomain,
@@ -16,7 +17,7 @@ import {
   MsgSignText,
   MsgTransferAccount,
   MsgTransferDomain,
-} from "proto/tx";
+} from "./proto/tx";
 
 export enum Starname {
   RegisterAccount = "/starnamed.x.starname.v1beta1.MsgRegisterAccount",

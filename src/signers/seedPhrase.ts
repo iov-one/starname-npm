@@ -11,12 +11,13 @@ import {
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
-import { hdPath } from "constants/hdPath";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import { MismatchedAddressError, Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
-import { WalletChains } from "types/walletChains";
+
+import { hdPath } from "../constants/hdPath";
+import { AddressGroup } from "../types/addressGroup";
+import { ChainMap } from "../types/chainMap";
+import { MismatchedAddressError, Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 export class SeedPhraseSigner implements Signer {
   readonly type = SignerType.SeedPhrase;
@@ -36,7 +37,7 @@ export class SeedPhraseSigner implements Signer {
     return accounts[0].address;
   }
 
-  public async getAddressGroup(chains: WalletChains): Promise<AddressGroup> {
+  public async getAddressGroup(chains: ChainMap): Promise<AddressGroup> {
     const chainIds = Object.keys(chains);
     const chainProps = Object.values(chains);
 

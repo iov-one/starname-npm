@@ -1,4 +1,5 @@
 import { AminoConverter } from "@cosmjs/stargate";
+
 import {
   MsgDeleteAccount,
   MsgDeleteDomain,
@@ -11,9 +12,9 @@ import {
   MsgSignText,
   MsgTransferAccount,
   MsgTransferDomain,
-} from "proto/tx";
-import { Resource } from "proto/types";
-import { TxType } from "starnameRegistry";
+} from "../proto/tx";
+import { Resource } from "../proto/types";
+import { TxType } from "../starnameRegistry";
 
 export enum AminoType {
   RegisterDomain = "starname/RegisterDomain",

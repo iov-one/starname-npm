@@ -5,9 +5,10 @@ import {
   OfflineSigner,
 } from "@cosmjs/proto-signing";
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
-import { Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { AddressGroup } from "types/addressGroup";
+
+import { AddressGroup } from "../types/addressGroup";
+import { Signer } from "./signer";
+import { SignerType } from "./signerType";
 
 export class DummySigner implements Signer {
   readonly type: SignerType = SignerType.Generic;

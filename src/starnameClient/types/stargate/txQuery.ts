@@ -1,4 +1,4 @@
-import { TxType } from "starnameRegistry";
+import { TxType } from "../../../starnameRegistry";
 
 export interface StargateTxQuery {
   parameters: {

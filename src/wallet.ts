@@ -2,10 +2,6 @@ import { StdSignature, StdSignDoc } from "@cosmjs/amino";
 import { OfflineSigner } from "@cosmjs/proto-signing";
 import { AminoTypes } from "@cosmjs/stargate";
 import { SigningStargateClient } from "@cosmjs/stargate/build/signingstargateclient";
-import { StarnameApi } from "api";
-import { Task } from "api/task";
-import { TxRejected } from "constants/errorCodes";
-import { FAVORITE_ASSET_URI } from "constants/favoriteAssetUri";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import {
   MsgBeginRedelegate,
@@ -13,6 +9,9 @@ import {
   MsgUndelegate,
 } from "cosmjs-types/cosmos/staking/v1beta1/tx";
 import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
+
+import { TxRejected } from "./constants/errorCodes";
+import { FAVORITE_ASSET_URI } from "./constants/favoriteAssetUri";
 import {
   MsgDeleteAccount,
   MsgDeleteDomain,
@@ -24,60 +23,59 @@ import {
   MsgReplaceAccountResources,
   MsgTransferAccount,
   MsgTransferDomain,
-} from "proto/tx";
-import { Resource } from "proto/types";
-import { Signer } from "signers/signer";
-import { SignerType } from "signers/signerType";
-import { StarnameRegistry, TxType } from "starnameRegistry";
-import { AddressGroup } from "types/addressGroup";
-import { aminoTypes } from "types/aminoTypes";
-import { ResponsePage } from "types/apiPage";
-import { Balance } from "types/balance";
-import { MsgsAndMemo } from "types/msgsAndMemo";
-import { Pager } from "types/pager";
-import { PostTxResult } from "types/postTxResult";
-import { ResourceInfo } from "types/resourceInfo";
-import { TokenLike } from "types/tokenLike";
-import { Transaction } from "types/transaction";
-import { Tx } from "types/tx";
-import { WalletChains } from "types/walletChains";
-import { estimateFee, GasConfig } from "utils/estimateFee";
+} from "./proto/tx";
+import { Resource } from "./proto/types";
+import { Signer } from "./signers/signer";
+import { SignerType } from "./signers/signerType";
+import { StarnameClient } from "./starnameClient";
+import { Task } from "./starnameClient/task";
+import { StarnameRegistry, TxType } from "./starnameRegistry";
+import { AddressGroup } from "./types/addressGroup";
+import { aminoTypes } from "./types/aminoTypes";
+import { ResponsePage } from "./types/apiPage";
+import { AssetResource } from "./types/assetResource";
+import { Balance } from "./types/balance";
+import { ChainMap } from "./types/chainMap";
+import { MsgsAndMemo } from "./types/msgsAndMemo";
+import { Pager } from "./types/pager";
+import { PostTxResult } from "./types/postTxResult";
+import { TokenLike } from "./types/tokenLike";
+import { Transaction } from "./types/transaction";
+import { Tx } from "./types/tx";
+import { estimateFee, GasConfig } from "./utils/estimateFee";
 
 export interface WalletOptions {
-  readonly starnameApi: StarnameApi;
-  readonly rpcUrl: string;
+  readonly starnameClient: StarnameClient;
   readonly gasConfig: GasConfig;
 }
 
 export class Wallet {
+  private readonly starnameClient: StarnameClient;
   private readonly signer: Signer;
-  private readonly rpcUrl: string;
   private readonly gasConfig: GasConfig;
-  private readonly starnameApi: StarnameApi;
 
   constructor(signer: Signer, options: WalletOptions) {
-    if (!options.starnameApi) {
+    if (!options.starnameClient) {
       throw new Error(
         "cannot create a wallet without access to the API object",
       );
     }
-    this.starnameApi = options.starnameApi;
+    this.starnameClient = options.starnameClient;
     this.signer = signer;
-    this.rpcUrl = options.rpcUrl;
     this.gasConfig = options.gasConfig;
   }
 
   protected async signAndBroadcast(
     msgsAndMemo: MsgsAndMemo,
   ): Promise<PostTxResult> {
-    const { starnameApi } = this;
-    if (starnameApi === undefined) {
+    const { starnameClient } = this;
+    if (starnameClient === undefined) {
       throw new Error("wallet not initialized properly");
     }
     try {
       const txRaw = await this.signMsgsAndMemo(msgsAndMemo);
       const bytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-      return starnameApi.rpcPostTx(bytes);
+      return starnameClient.broadcastTx(bytes);
     } catch (exception: any) {
       if (exception.message !== "Request rejected") {
         throw exception;
@@ -97,23 +95,29 @@ export class Wallet {
     msgsAndMemo: MsgsAndMemo,
   ): Promise<TxRaw> {
     const { messages, memo } = msgsAndMemo;
+    const { starnameClient } = this;
     const address = await this.getAddress();
     const fee = estimateFee(messages, this.gasConfig);
     const registry = new StarnameRegistry();
 
-    const client = await SigningStargateClient.connectWithSigner(
-      this.rpcUrl,
-      signer,
-      {
-        registry: registry,
-        aminoTypes: new AminoTypes({
-          additions: aminoTypes,
-          prefix: "star",
-        }),
-      },
-    );
+    const client = await SigningStargateClient.offline(signer, {
+      registry: registry,
+      aminoTypes: new AminoTypes({
+        additions: aminoTypes,
+        prefix: "star",
+      }),
+    });
 
-    return await client.sign(address, messages, fee, memo);
+    const account = await starnameClient.getAccount(address);
+    if (!account) {
+      throw new Error(`could not find account for ${address}`);
+    }
+
+    return await client.sign(address, messages, fee, memo, {
+      accountNumber: account.accountNumber,
+      sequence: account.sequence,
+      chainId: starnameClient.getChainId(),
+    });
   }
 
   public async signMsgsAndMemo(msgsAndMemo: MsgsAndMemo): Promise<TxRaw> {
@@ -131,7 +135,7 @@ export class Wallet {
     return signer.getAddress();
   }
 
-  private getSigner(): Signer {
+  public getSigner(): Signer {
     return this.signer;
   }
 
@@ -139,12 +143,12 @@ export class Wallet {
     let task: Task<ReadonlyArray<Balance>> | null = null;
     return {
       run: async (): Promise<ReadonlyArray<Balance>> => {
-        const { starnameApi } = this;
-        if (starnameApi === undefined) {
+        const { starnameClient } = this;
+        if (starnameClient === undefined) {
           throw new Error("wallet not initialized properly");
         }
         const signer: Signer = this.getSigner();
-        task = starnameApi.getBalance(await signer.getAddress());
+        task = starnameClient.getBalance(await signer.getAddress());
         return task.run();
       },
       abort: (): void => {
@@ -161,12 +165,12 @@ export class Wallet {
     let task: Task<Record<string, ResponsePage<Transaction>>> | null = null;
     return {
       run: async (): Promise<Record<string, ResponsePage<Transaction>>> => {
-        const { starnameApi } = this;
-        if (starnameApi === undefined) {
+        const { starnameClient } = this;
+        if (starnameClient === undefined) {
           throw new Error("wallet not initialized properly");
         }
         const signer: Signer = this.getSigner();
-        task = starnameApi.getTransactions(await signer.getAddress(), page);
+        task = starnameClient.getTransactions(await signer.getAddress(), page);
         return task.run();
       },
       abort: (): void => {
@@ -191,7 +195,7 @@ export class Wallet {
 
   public async replaceDomainResources(
     domain: string,
-    targets: ReadonlyArray<ResourceInfo>,
+    targets: ReadonlyArray<AssetResource>,
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
   ): Promise<PostTxResult> {
@@ -203,7 +207,7 @@ export class Wallet {
         name: "",
         newResources: [
           ...targets.map(
-            ({ asset, address }: ResourceInfo): Resource => ({
+            ({ asset, address }: AssetResource): Resource => ({
               uri: asset["starname-uri"],
               resource: address,
             }),
@@ -239,7 +243,7 @@ export class Wallet {
   public async replaceAccountResources(
     name: string,
     domain: string,
-    targets: ReadonlyArray<ResourceInfo>,
+    targets: ReadonlyArray<AssetResource>,
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
   ): Promise<PostTxResult> {
@@ -251,7 +255,7 @@ export class Wallet {
         name: name,
         newResources: this.sanitizeResources([
           ...targets.map(
-            ({ asset, address }: ResourceInfo): Resource => ({
+            ({ asset, address }: AssetResource): Resource => ({
               uri: asset["starname-uri"],
               resource: address,
             }),
@@ -274,8 +278,8 @@ export class Wallet {
     domain: string,
     type: "closed" | "open" = "closed",
   ): Promise<PostTxResult> {
-    const { starnameApi } = this;
-    if (starnameApi === undefined) {
+    const { starnameClient } = this;
+    if (starnameClient === undefined) {
       throw new Error("wallet not initialized properly");
     }
     const address: string = await this.getAddress();
@@ -286,7 +290,7 @@ export class Wallet {
         admin: address,
         domainType: type,
         payer: "",
-        broker: starnameApi.getBroker(),
+        broker: starnameClient.getBroker(),
       },
     };
 
@@ -298,36 +302,31 @@ export class Wallet {
 
   private createResourcesFromAddressGroup = (
     addressGroup: AddressGroup,
-    chains: WalletChains,
+    chains: ChainMap,
   ): Array<Resource> => {
-    const resources: Array<Resource> = Object.keys(addressGroup).map(
-      (chainId) => {
-        const symbol = chains[chainId].symbol;
-        return {
-          uri: `asset:${symbol.toLowerCase()}`,
-          // signers sends it on 0th index
-          resource: addressGroup[chainId][0].address,
-        };
-      },
-    );
-    return resources;
+    return Object.keys(addressGroup).map((chainId) => {
+      const symbol = chains[chainId].symbol;
+      return {
+        uri: `asset:${symbol.toLowerCase()}`,
+        // signers sends it on 0th index
+        resource: addressGroup[chainId][0].address,
+      };
+    });
   };
 
-  private getOtherChainResources = async (
-    chains: WalletChains,
+  public getOtherChainResources = async (
+    chains: ChainMap,
   ): Promise<Array<Resource>> => {
+    const { signer } = this;
+
     switch (this.getSignerType()) {
       case SignerType.Keplr:
       case SignerType.Google:
       case SignerType.SeedPhrase: {
         // Now request signer to provide addressGroup ( for chains )
         try {
-          const addressGroup = await this.signer.getAddressGroup(chains);
-          const resources = this.createResourcesFromAddressGroup(
-            addressGroup,
-            chains,
-          );
-          return resources;
+          const addressGroup = await signer.getAddressGroup(chains);
+          return this.createResourcesFromAddressGroup(addressGroup, chains);
         } catch (error) {
           console.warn(error);
         }
@@ -342,13 +341,13 @@ export class Wallet {
   public async registerAccount(
     name: string,
     domain: string,
-    chains?: WalletChains,
+    chains?: ChainMap,
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
     const resources: Array<Resource> = [];
     // Set default resource first
     resources.push({
-      uri: this.starnameApi.getDefaultAssetURI(),
+      uri: this.starnameClient.getDefaultAssetURI(),
       resource: address,
     });
     // if require generation of other chain addresses as well
@@ -369,7 +368,7 @@ export class Wallet {
         owner: address,
         registerer: address,
         resources: resources,
-        broker: this.starnameApi.getBroker(),
+        broker: this.starnameClient.getBroker(),
         payer: "",
       },
     };

@@ -1,4 +1,4 @@
-import { StargateValidator } from "api/types/stargate/validatorResponse";
+import { StargateValidator } from "../starnameClient/types/stargate/validatorResponse";
 
 export type Validator = LaunchPadValidator | StargateValidator;
 

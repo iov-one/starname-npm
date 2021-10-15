@@ -1,11 +1,11 @@
-import { StarnameApi } from "api";
-import { Validator } from "types/delegationValidator";
+import { StarnameClient } from "../starnameClient";
+import { Validator } from "../types/delegationValidator";
 
 const reverseLookup = async (
-  starnameApi: StarnameApi,
+  starnameClient: StarnameClient,
   address: string,
 ): Promise<string> => {
-  const task = starnameApi.resourceAccounts(address);
+  const task = starnameClient.resourceAccounts(address);
   const list = await task.run();
   if (list.length === 0) {
     return address;
@@ -15,10 +15,10 @@ const reverseLookup = async (
 };
 
 const getValidator = async (
-  starnameApi: StarnameApi,
+  starnameClient: StarnameClient,
   address: string,
 ): Promise<Validator> => {
-  const task = starnameApi.getValidator(address);
+  const task = starnameClient.getValidator(address);
   return task.run();
 };
 
