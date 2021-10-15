@@ -51,7 +51,7 @@ import {
 import { StargateValidatorsResponse } from "./types/stargate/validatorsResponse";
 
 export class StarnameClient {
-  private client: StargateClient | null = null;
+  private stargateClient: StargateClient | null = null;
   private settings: Settings = {} as Settings;
   private tokens: Record<string, TokenLike> = {};
   private assets: Record<string, Asset> = {};
@@ -62,20 +62,31 @@ export class StarnameClient {
 
   private chainId = "";
 
-  public async initialize(
+  private constructor() {}
+
+  public static createOffline(): StarnameClient {
+    return new StarnameClient();
+  }
+
+  public static async createConnected(
     rpcUrl: string,
     apiUrl: string,
     validatorsInfoUrl: string,
     tokens: Record<string, TokenLike>,
     mainAsset: Asset,
     broker?: string,
-  ): Promise<void> {
-    this.api = getStargateEndpoints(apiUrl, rpcUrl, validatorsInfoUrl);
+  ): Promise<StarnameClient> {
+    const starnameClient = new StarnameClient();
+    starnameClient.api = getStargateEndpoints(
+      apiUrl,
+      rpcUrl,
+      validatorsInfoUrl,
+    );
     // FIXME: use the asset directory here right?
-    this.tokens = tokens;
-    this.settings = await this.loadSettings();
-    this.fees = await this.loadFees();
-    this.mainAsset = mainAsset;
+    starnameClient.tokens = tokens;
+    starnameClient.settings = await starnameClient.loadSettings();
+    starnameClient.fees = await starnameClient.loadFees();
+    starnameClient.mainAsset = mainAsset;
     const filteredAssets: ReadonlyArray<Asset> = assets
       .slice()
       .sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
@@ -83,14 +94,14 @@ export class StarnameClient {
       );
     if (broker) {
       try {
-        this.broker = await Task.toPromise(
-          getIOVAddressForStarname(this, broker),
+        starnameClient.broker = await Task.toPromise(
+          getIOVAddressForStarname(starnameClient, broker),
         );
       } catch {
-        this.broker = "";
+        starnameClient.broker = "";
       }
     }
-    this.assets = filteredAssets.reduce(
+    starnameClient.assets = filteredAssets.reduce(
       (
         previousValue: Record<string, Asset>,
         asset: Asset,
@@ -99,9 +110,10 @@ export class StarnameClient {
       },
       {},
     );
-    const client = await StargateClient.connect(rpcUrl);
-    this.client = client;
-    this.chainId = await client.getChainId();
+    starnameClient.stargateClient = await StargateClient.connect(rpcUrl);
+    starnameClient.chainId = starnameClient.getChainId();
+
+    return starnameClient;
   }
 
   private loadSettings = async (): Promise<Settings> => {
@@ -387,7 +399,7 @@ export class StarnameClient {
   }
 
   public broadcastTx = async (signedTx: Uint8Array): Promise<PostTxResult> => {
-    const client: StargateClient | null = this.client;
+    const client: StargateClient | null = this.stargateClient;
     if (client !== null) {
       return client.broadcastTx(signedTx);
     } else {

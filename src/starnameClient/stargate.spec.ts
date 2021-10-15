@@ -8,11 +8,11 @@ jest.setTimeout(50000);
 
 describe("Stargate Api Implementation", (): void => {
   let wallet: Wallet;
-  const starnameClient = new StarnameClient();
+  let starnameClient: StarnameClient;
 
   beforeAll(async (): Promise<void> => {
+    starnameClient = await setupTest();
     wallet = await createWallet(starnameClient);
-    await setupTest(starnameClient);
   });
 
   const testName = randomName();
