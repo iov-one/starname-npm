@@ -3,6 +3,7 @@ export { SignerType } from "./signers/signerType";
 export { Wallet } from "./wallet";
 export { GDriveCustodian } from "./gdrive/custodian";
 export { Task, TaskAbortedError } from "./starnameClient/task";
+export { StarnameRegistry } from "./starnameRegistry";
 // Signers
 export { LedgerSigner } from "./signers/ledger";
 export { GoogleSigner } from "./signers/google";

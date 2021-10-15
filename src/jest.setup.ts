@@ -7,10 +7,8 @@ import { Wallet } from "./wallet";
 export const rpcUrl = "http://localhost:26657";
 export const apiUrl = "http://localhost:1317";
 
-export const setupTest = async (
-  starnameClient: StarnameClient,
-): Promise<void> => {
-  await starnameClient.initialize(
+export const setupTest = (): Promise<StarnameClient> => {
+  return StarnameClient.createConnected(
     rpcUrl,
     apiUrl,
     "" /* validatorsInfoUrl */,
