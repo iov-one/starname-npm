@@ -13,7 +13,7 @@ export interface StargateTxQuery {
   type: string;
 }
 
-const queries = [
+export const defaultTxQueries = [
   (address: string): StargateTxQuery => {
     return {
       parameters: {
@@ -64,6 +64,63 @@ const queries = [
       type: TxType.Virtual.GenericDelegation,
     };
   },
+  (address: string): any => {
+    return {
+      parameters: {
+        message: {
+          module: "distribution",
+        },
+        transfer: {
+          recipient: address,
+        },
+      },
+      type: TxType.Distribution.WithdrawDelegatorReward,
+    };
+  },
+  (address: string): any => {
+    return {
+      parameters: {
+        message: {
+          action: TxType.Escrow.CreateEscrow,
+          sender: address,
+        },
+      },
+      type: TxType.Escrow.CreateEscrow,
+    };
+  },
+  (address: string): any => {
+    return {
+      parameters: {
+        message: {
+          action: TxType.Escrow.UpdateEscrow,
+          sender: address,
+        },
+      },
+      type: TxType.Escrow.UpdateEscrow,
+    };
+  },
+  (address: string): any => {
+    return {
+      parameters: {
+        message: {
+          action: TxType.Escrow.RefundEscrow,
+          sender: address,
+        },
+      },
+      type: TxType.Escrow.RefundEscrow,
+    };
+  },
+  (address: string): any => {
+    return {
+      parameters: {
+        message: {
+          action: TxType.Escrow.TransferToEscrow,
+        },
+        transfer: {
+          recipient: address,
+        },
+      },
+      type: TxType.Escrow.TransferToEscrow,
+    };
+  },
 ];
-
-export default queries;

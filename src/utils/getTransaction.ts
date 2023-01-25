@@ -1,11 +1,13 @@
 import { StarnameClient } from "../starnameClient";
+import { Task } from "../starnameClient/task";
 import { Validator } from "../types/delegationValidator";
+import { Escrow } from "../types/escrow";
 
 const reverseLookup = async (
-  starnameClient: StarnameClient,
+  client: StarnameClient,
   address: string,
 ): Promise<string> => {
-  const task = starnameClient.resourceAccounts(address);
+  const task = client.resourceAccounts(address);
   const list = await task.run();
   if (list.length === 0) {
     return address;
@@ -15,11 +17,18 @@ const reverseLookup = async (
 };
 
 const getValidator = async (
-  starnameClient: StarnameClient,
+  client: StarnameClient,
   address: string,
 ): Promise<Validator> => {
-  const task = starnameClient.getValidator(address);
+  const task = client.getValidator(address);
   return task.run();
 };
 
-export { reverseLookup, getValidator };
+const getEscrow = async (
+  client: StarnameClient,
+  id: string,
+): Promise<Escrow> => {
+  return Task.toPromise(client.getEscrowWithId(id));
+};
+
+export { reverseLookup, getValidator, getEscrow };

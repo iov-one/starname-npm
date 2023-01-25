@@ -1,6 +1,5 @@
 import assets from "@iov/asset-directory";
 
-import { Account, Resource } from "../proto/types";
 import { StarnameClient } from "../starnameClient";
 import { Task } from "../starnameClient/task";
 
@@ -24,15 +23,15 @@ export const getIOVAddressForStarname = (
   client: StarnameClient,
   name: string,
 ): Task<string> => {
-  const task: Task<Account> = client.resolveStarname(name);
+  const task = client.resolveStarname(name);
 
   return {
     run: async (): Promise<string> => {
       const account = await task.run();
       const { resources } = account;
       if (resources !== null) {
-        const found: Resource | undefined = resources.find(
-          (resource: Resource): boolean =>
+        const found = resources.find(
+          (resource): boolean =>
             resource.uri === iovStarnameUri["starname-uri"],
         );
         if (found === undefined) throw NoIOVAddressLinkedToStarnameError;

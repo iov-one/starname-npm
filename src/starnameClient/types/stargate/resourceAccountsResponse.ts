@@ -1,7 +1,7 @@
-import { Account } from "../../../proto/types";
+import { ApiAccount } from "../../../types/account";
 import { PaginationPage } from "./page";
 
 export interface ResourceAccountsResponse {
-  accounts: ReadonlyArray<Account>;
+  accounts: ReadonlyArray<ApiAccount>;
   page: PaginationPage;
 }

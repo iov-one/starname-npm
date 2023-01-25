@@ -1,28 +1,11 @@
+import { StdFee } from "@cosmjs/amino";
 import {
-  BroadcastTxFailure,
-  BroadcastTxSuccess,
-  isBroadcastTxFailure,
-  isBroadcastTxSuccess,
-  StdFee,
-} from "@cosmjs/launchpad";
-import { BroadcastTxResult as LaunchpadBroadcastTxResponse } from "@cosmjs/launchpad";
-import { BroadcastTxResponse as StargateBroadcastTxResponse } from "@cosmjs/stargate";
+  DeliverTxResponse,
+  isDeliverTxFailure,
+  isDeliverTxSuccess,
+} from "@cosmjs/stargate";
 
-export type PostTxResult =
-  | StargateBroadcastTxResponse
-  | LaunchpadBroadcastTxResponse;
-
-export const isTransactionSuccess = (
-  result: PostTxResult | any,
-): result is BroadcastTxSuccess => {
-  return isBroadcastTxSuccess(result);
-};
-
-export const isTransactionFailure = (
-  result: PostTxResult | any,
-): result is BroadcastTxFailure => {
-  return isBroadcastTxFailure(result);
-};
+export type PostTxResult = DeliverTxResponse | StdFee;
 
 export const isFee = (result: PostTxResult | any): result is StdFee => {
   if (!("gas" in result)) return false;
@@ -34,4 +17,18 @@ export const isFee = (result: PostTxResult | any): result is StdFee => {
     if (!("amount" in item)) return false;
     return "denom" in item;
   });
+};
+
+export const isTransactionSuccess = (
+  result: PostTxResult | any,
+): result is DeliverTxResponse => {
+  if (isFee(result)) return false;
+  return isDeliverTxSuccess(result);
+};
+
+export const isTransactionFailure = (
+  result: PostTxResult | any,
+): result is DeliverTxResponse => {
+  if (isFee(result)) return false;
+  return isDeliverTxFailure(result);
 };

@@ -1,12 +1,16 @@
 import { GeneratedType, Registry } from "@cosmjs/proto-signing";
-import {
-  MsgBeginRedelegate,
-  MsgDelegate,
-  MsgUndelegate,
-} from "cosmjs-types/cosmos/staking/v1beta1/tx";
+import { defaultRegistryTypes } from "@cosmjs/stargate";
 
 import {
+  MsgCreateEscrow,
+  MsgRefundEscrow,
+  MsgTransferToEscrow,
+  MsgUpdateEscrow,
+} from "./proto/iov/escrow/v1beta1/tx";
+import {
+  MsgAddAccountCertificate,
   MsgDeleteAccount,
+  MsgDeleteAccountCertificate,
   MsgDeleteDomain,
   MsgRegisterAccount,
   MsgRegisterDomain,
@@ -17,9 +21,15 @@ import {
   MsgSignText,
   MsgTransferAccount,
   MsgTransferDomain,
-} from "./proto/tx";
+} from "./proto/iov/starname/v1beta1/tx";
+import { Account, Domain, Resource } from "./proto/iov/starname/v1beta1/types";
 
 export enum Starname {
+  // base types
+  Account = "/starnamed.x.starname.v1beta1.Account",
+  Domain = "/starnamed.x.starname.v1beta1.Domain",
+  Resource = "/starnamed.x.starname.v1beta1.Resource",
+  // tx
   RegisterAccount = "/starnamed.x.starname.v1beta1.MsgRegisterAccount",
   RegisterDomain = "/starnamed.x.starname.v1beta1.MsgRegisterDomain",
   TransferAccount = "/starnamed.x.starname.v1beta1.MsgTransferAccount",
@@ -30,6 +40,15 @@ export enum Starname {
   ReplaceAccountResources = "/starnamed.x.starname.v1beta1.MsgReplaceAccountResources",
   TransferDomain = "/starnamed.x.starname.v1beta1.MsgTransferDomain",
   DeleteDomain = "/starnamed.x.starname.v1beta1.MsgDeleteDomain",
+  AddAccountCertificate = "/starnamed.x.starname.v1beta1.MsgAddAccountCertificate",
+  DeleteAccountCertificate = "/starnamed.x.starname.v1beta1.MsgDeleteAccountCertificate",
+}
+
+export enum Escrow {
+  CreateEscrow = "/starnamed.x.escrow.v1beta1.MsgCreateEscrow",
+  UpdateEscrow = "/starnamed.x.escrow.v1beta1.MsgUpdateEscrow",
+  TransferToEscrow = "/starnamed.x.escrow.v1beta1.MsgTransferToEscrow",
+  RefundEscrow = "/starnamed.x.escrow.v1beta1.MsgRefundEscrow",
 }
 
 export enum Bank {
@@ -42,7 +61,13 @@ export enum Staking {
   Delegate = "/cosmos.staking.v1beta1.MsgDelegate",
 }
 
+export enum Distribution {
+  WithdrawDelegatorReward = "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+}
+
 export enum Virtual {
+  // Generic escrow types
+  GenericEscrow = "/starnamed.x.escrow.*",
   // Generic query types
   GenericStarname = "/starnamed.x.starname.*",
   GenericDelegation = "/cosmos.staking.v1beta1.Msg(?:Un)?Delegate",
@@ -54,31 +79,47 @@ export enum Aleph {
   SignText = "/aleph.signutil.MsgSignText",
 }
 
-export const TxType = { Starname, Bank, Staking, Virtual, Aleph };
+export const TxType = {
+  Starname,
+  Bank,
+  Staking,
+  Distribution,
+  Virtual,
+  Aleph,
+  Escrow,
+};
 
 const types: { [key: string]: GeneratedType } = {
   // Account
+  [Starname.Account]: Account,
   [Starname.RegisterAccount]: MsgRegisterAccount,
   [Starname.RenewAccount]: MsgRenewAccount,
   [Starname.DeleteAccount]: MsgDeleteAccount,
   [Starname.TransferAccount]: MsgTransferAccount,
   [Starname.ReplaceAccountResources]: MsgReplaceAccountResources,
   [Starname.ReplaceAccountMetadata]: MsgReplaceAccountMetadata,
+  [Starname.AddAccountCertificate]: MsgAddAccountCertificate,
+  [Starname.DeleteAccountCertificate]: MsgDeleteAccountCertificate,
+
   // Domain
+  [Starname.Domain]: Domain,
   [Starname.RegisterDomain]: MsgRegisterDomain,
   [Starname.RenewDomain]: MsgRenewDomain,
   [Starname.TransferDomain]: MsgTransferDomain,
   [Starname.DeleteDomain]: MsgDeleteDomain,
-  // Staking
-  [Staking.Delegate]: MsgDelegate,
-  [Staking.BeginRedelegate]: MsgBeginRedelegate,
-  [Staking.Undelegate]: MsgUndelegate,
+
+  [Starname.Resource]: Resource,
+  // Escrow
+  [Escrow.CreateEscrow]: MsgCreateEscrow,
+  [Escrow.UpdateEscrow]: MsgUpdateEscrow,
+  [Escrow.TransferToEscrow]: MsgTransferToEscrow,
+  [Escrow.RefundEscrow]: MsgRefundEscrow,
   // Aleph
   [Aleph.SignText]: MsgSignText,
 };
 
 export class StarnameRegistry extends Registry {
   constructor() {
-    super(Object.entries(types));
+    super(defaultRegistryTypes.concat(Object.entries(types)));
   }
 }

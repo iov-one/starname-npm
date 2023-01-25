@@ -15,15 +15,11 @@
     "noUnusedParameters": false,
     "removeComments": false,
     "sourceMap": true,
-    "skipLibCheck": true,
     "strict": true,
     "outDir": "lib",
     "declaration": true,
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
+    "skipLibCheck": true
   },
   "include": ["src"],
   "exclude": ["node_modules", "lib"]

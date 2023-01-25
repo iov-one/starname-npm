@@ -1,7 +1,17 @@
-import { AminoConverter } from "@cosmjs/stargate";
+import { fromBase64, toBase64 } from "@cosmjs/encoding";
+import { AminoConverter, Coin } from "@cosmjs/stargate";
 
+import { Any } from "../proto/google/protobuf/any";
 import {
+  MsgCreateEscrow,
+  MsgRefundEscrow,
+  MsgTransferToEscrow,
+  MsgUpdateEscrow,
+} from "../proto/iov/escrow/v1beta1/tx";
+import {
+  MsgAddAccountCertificate,
   MsgDeleteAccount,
+  MsgDeleteAccountCertificate,
   MsgDeleteDomain,
   MsgRegisterAccount,
   MsgRegisterDomain,
@@ -12,11 +22,13 @@ import {
   MsgSignText,
   MsgTransferAccount,
   MsgTransferDomain,
-} from "../proto/tx";
-import { Resource } from "../proto/types";
+} from "../proto/iov/starname/v1beta1/tx";
+import { Account, Domain, Resource } from "../proto/iov/starname/v1beta1/types";
 import { TxType } from "../starnameRegistry";
 
 export enum AminoType {
+  Account = "starname/Account",
+  Domain = "starname/Domain",
   RegisterDomain = "starname/RegisterDomain",
   RegisterAccount = "starname/RegisterAccount",
   DeleteDomain = "starname/DeleteDomain",
@@ -27,11 +39,36 @@ export enum AminoType {
   RenewAccount = "starname/RenewAccount",
   ReplaceAccountMetadata = "starname/SetAccountMetadata",
   ReplaceAccountResources = "starname/ReplaceAccountResources",
+  AddAccountCertificate = "starname/AddAccountCertificate",
+  DeleteAccountCertificate = "starname/DeleteAccountCertificate",
   SignText = "signutil/MsgSignText",
+  CreateEscrow = "escrow/CreateEscrow",
+  UpdateEscrow = "escrow/UpdateEscrow",
+  RefundEscrow = "escrow/RefundEscrow",
+  TransferToEscrow = "escrow/TransferToEscrow",
 }
 
 interface AminoMsgBase {
   readonly payer?: string;
+}
+
+export interface AminoDomain extends AminoMsgBase {
+  name: string;
+  admin: Uint8Array;
+  broker: Uint8Array;
+  valid_until: number;
+  type: string;
+}
+
+export interface AminoAccount extends AminoMsgBase {
+  domain: string;
+  name: string | undefined;
+  owner: Uint8Array;
+  broker: Uint8Array;
+  valid_until: number;
+  resources: Resource[];
+  certificates: Uint8Array[];
+  metadata_uri: string;
 }
 
 export interface AminoMsgRegisterDomain extends AminoMsgBase {
@@ -101,6 +138,52 @@ export interface AminoMsgReplaceAccountResources extends AminoMsgBase {
   readonly owner: string;
 }
 
+export interface AminoMsgAddAccountCertificate extends AminoMsgBase {
+  readonly domain: string;
+  readonly name?: string;
+  readonly owner: string;
+  readonly payer?: string;
+  readonly new_certificate: string;
+}
+
+export interface AminoMsgDeleteAccountCertificate extends AminoMsgBase {
+  readonly domain: string;
+  readonly name?: string;
+  readonly owner: string;
+  readonly payer?: string;
+  readonly delete_certificate: string;
+}
+
+export interface AminoMsgCreateEscrow extends AminoMsgBase {
+  readonly seller: string;
+  readonly fee_payer: string;
+  readonly object: Any | undefined;
+  readonly price: Array<Coin>;
+  readonly deadline: number;
+}
+
+export interface AminoMsgUpdateEscrow extends AminoMsgBase {
+  readonly id: string;
+  readonly updater: string;
+  readonly fee_payer: string;
+  readonly seller: string;
+  readonly price: Array<Coin>;
+  readonly deadline: number;
+}
+
+export interface AminoMsgRefundEscrow extends AminoMsgBase {
+  readonly id: string;
+  readonly sender: string;
+  readonly fee_payer: string;
+}
+
+export interface AminoMsgTransferToEscrow extends AminoMsgBase {
+  readonly id: string;
+  readonly sender: string;
+  readonly fee_payer: string;
+  readonly amount: Array<Coin>;
+}
+
 export interface AminoMsgSignText {
   readonly message: string;
   readonly signer: string;
@@ -109,7 +192,49 @@ export interface AminoMsgSignText {
 const emptyToUndefined = (value: string): string | undefined =>
   value === "" ? undefined : value;
 
-export const aminoTypes: { [key: string]: AminoConverter } = {
+export const customStarnameAminoTypes: { [key: string]: AminoConverter } = {
+  [TxType.Starname.Domain]: {
+    aminoType: AminoType.Domain,
+    toAmino: (value: Domain): AminoDomain => ({
+      admin: value.admin,
+      broker: value.broker,
+      name: value.name,
+      type: value.type,
+      valid_until: value.validUntil,
+      payer: emptyToUndefined(""),
+    }),
+    fromAmino: (value: AminoDomain): Domain => ({
+      admin: value.admin,
+      broker: value.broker,
+      name: value.name,
+      type: value.type,
+      validUntil: value.valid_until,
+    }),
+  },
+  [TxType.Starname.Account]: {
+    aminoType: AminoType.Account,
+    toAmino: (value: Account): AminoAccount => ({
+      broker: value.broker,
+      certificates: value.certificates,
+      domain: value.domain,
+      metadata_uri: value.metadataUri,
+      name: value.name,
+      owner: value.owner,
+      resources: value.resources,
+      valid_until: value.validUntil,
+      payer: emptyToUndefined(""),
+    }),
+    fromAmino: (value: AminoAccount): Account => ({
+      broker: value.broker,
+      certificates: value.certificates,
+      domain: value.domain,
+      metadataUri: value.metadata_uri,
+      name: value.name,
+      owner: value.owner,
+      resources: value.resources,
+      validUntil: value.valid_until,
+    }),
+  },
   [TxType.Starname.RegisterDomain]: {
     aminoType: AminoType.RegisterDomain,
     toAmino: (value: MsgRegisterDomain): AminoMsgRegisterDomain => ({
@@ -282,6 +407,48 @@ export const aminoTypes: { [key: string]: AminoConverter } = {
       payer: value.payer ?? "",
     }),
   },
+  [TxType.Starname.AddAccountCertificate]: {
+    aminoType: AminoType.AddAccountCertificate,
+    toAmino: (
+      value: MsgAddAccountCertificate,
+    ): AminoMsgAddAccountCertificate => ({
+      name: emptyToUndefined(value.name),
+      domain: value.domain,
+      owner: value.owner,
+      payer: emptyToUndefined(value.payer),
+      new_certificate: toBase64(value.newCertificate),
+    }),
+    fromAmino: (
+      value: AminoMsgAddAccountCertificate,
+    ): MsgAddAccountCertificate => ({
+      name: value.name ?? "",
+      domain: value.domain,
+      owner: value.owner,
+      newCertificate: fromBase64(value.new_certificate),
+      payer: value.payer ?? "",
+    }),
+  },
+  [TxType.Starname.DeleteAccountCertificate]: {
+    aminoType: AminoType.DeleteAccountCertificate,
+    toAmino: (
+      value: MsgDeleteAccountCertificate,
+    ): AminoMsgDeleteAccountCertificate => ({
+      name: emptyToUndefined(value.name),
+      domain: value.domain,
+      owner: value.owner,
+      payer: emptyToUndefined(value.payer),
+      delete_certificate: toBase64(value.deleteCertificate),
+    }),
+    fromAmino: (
+      value: AminoMsgDeleteAccountCertificate,
+    ): MsgDeleteAccountCertificate => ({
+      name: value.name ?? "",
+      domain: value.domain,
+      owner: value.owner,
+      deleteCertificate: fromBase64(value.delete_certificate),
+      payer: value.payer ?? "",
+    }),
+  },
   [TxType.Aleph.SignText]: {
     aminoType: AminoType.SignText,
     toAmino: (value: MsgSignText): AminoMsgSignText => ({
@@ -291,6 +458,74 @@ export const aminoTypes: { [key: string]: AminoConverter } = {
     fromAmino: (value: AminoMsgSignText): MsgSignText => ({
       message: value.message,
       signer: value.signer,
+    }),
+  },
+  [TxType.Escrow.CreateEscrow]: {
+    aminoType: AminoType.CreateEscrow,
+    toAmino: (value: MsgCreateEscrow): AminoMsgCreateEscrow => ({
+      deadline: value.deadline,
+      fee_payer: value.feePayer,
+      object: value.object,
+      price: value.price,
+      seller: value.seller,
+      payer: emptyToUndefined(""),
+    }),
+    fromAmino: (value: AminoMsgCreateEscrow): MsgCreateEscrow => ({
+      deadline: value.deadline,
+      feePayer: value.fee_payer,
+      object: value.object,
+      price: value.price,
+      seller: value.seller,
+    }),
+  },
+  [TxType.Escrow.UpdateEscrow]: {
+    aminoType: AminoType.UpdateEscrow,
+    toAmino: (value: MsgUpdateEscrow): AminoMsgUpdateEscrow => ({
+      deadline: value.deadline,
+      fee_payer: value.feePayer,
+      price: value.price,
+      seller: value.seller,
+      payer: emptyToUndefined(""),
+      id: value.id,
+      updater: value.updater,
+    }),
+    fromAmino: (value: AminoMsgUpdateEscrow): MsgUpdateEscrow => ({
+      deadline: value.deadline,
+      feePayer: value.fee_payer,
+      price: value.price,
+      seller: value.seller,
+      id: value.id,
+      updater: value.updater,
+    }),
+  },
+  [TxType.Escrow.RefundEscrow]: {
+    aminoType: AminoType.RefundEscrow,
+    toAmino: (value: MsgRefundEscrow): AminoMsgRefundEscrow => ({
+      fee_payer: value.feePayer,
+      id: value.id,
+      sender: value.sender,
+      payer: emptyToUndefined(""),
+    }),
+    fromAmino: (value: AminoMsgRefundEscrow): MsgRefundEscrow => ({
+      feePayer: value.fee_payer,
+      id: value.id,
+      sender: value.sender,
+    }),
+  },
+  [TxType.Escrow.TransferToEscrow]: {
+    aminoType: AminoType.TransferToEscrow,
+    toAmino: (value: MsgTransferToEscrow): AminoMsgTransferToEscrow => ({
+      amount: value.amount,
+      fee_payer: value.feePayer,
+      id: value.id,
+      sender: value.sender,
+      payer: emptyToUndefined(""),
+    }),
+    fromAmino: (value: AminoMsgTransferToEscrow): MsgTransferToEscrow => ({
+      amount: value.amount,
+      feePayer: value.fee_payer,
+      id: value.id,
+      sender: value.sender,
     }),
   },
 };

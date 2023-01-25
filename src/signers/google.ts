@@ -92,4 +92,8 @@ export class GoogleSigner implements Signer {
   public getOfflineSigner(): OfflineSigner {
     return this;
   }
+
+  public disconnect(): void {
+    this.signOut();
+  }
 }

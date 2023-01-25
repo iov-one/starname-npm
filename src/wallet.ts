@@ -1,8 +1,20 @@
 import { StdSignature, StdSignDoc } from "@cosmjs/amino";
+import { fromBase64 } from "@cosmjs/encoding";
 import { OfflineSigner } from "@cosmjs/proto-signing";
-import { AminoTypes } from "@cosmjs/stargate";
+import {
+  AminoTypes,
+  createAuthzAminoConverters,
+  createBankAminoConverters,
+  createDistributionAminoConverters,
+  createFeegrantAminoConverters,
+  createGovAminoConverters,
+  createIbcAminoConverters,
+  createStakingAminoConverters,
+  createVestingAminoConverters,
+} from "@cosmjs/stargate";
 import { SigningStargateClient } from "@cosmjs/stargate/build/signingstargateclient";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
+import { MsgWithdrawDelegatorReward } from "cosmjs-types/cosmos/distribution/v1beta1/tx";
 import {
   MsgBeginRedelegate,
   MsgDelegate,
@@ -13,7 +25,15 @@ import { TxRaw } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 import { TxRejected } from "./constants/errorCodes";
 import { FAVORITE_ASSET_URI } from "./constants/favoriteAssetUri";
 import {
+  MsgCreateEscrow,
+  MsgRefundEscrow,
+  MsgTransferToEscrow,
+  MsgUpdateEscrow,
+} from "./proto/iov/escrow/v1beta1/tx";
+import {
+  MsgAddAccountCertificate,
   MsgDeleteAccount,
+  MsgDeleteAccountCertificate,
   MsgDeleteDomain,
   MsgRegisterAccount,
   MsgRegisterDomain,
@@ -23,58 +43,57 @@ import {
   MsgReplaceAccountResources,
   MsgTransferAccount,
   MsgTransferDomain,
-} from "./proto/tx";
-import { Resource } from "./proto/types";
+} from "./proto/iov/starname/v1beta1/tx";
+import { Resource } from "./proto/iov/starname/v1beta1/types";
 import { Signer } from "./signers/signer";
 import { SignerType } from "./signers/signerType";
 import { StarnameClient } from "./starnameClient";
 import { Task } from "./starnameClient/task";
 import { StarnameRegistry, TxType } from "./starnameRegistry";
-import { AddressGroup } from "./types/addressGroup";
-import { aminoTypes } from "./types/aminoTypes";
+import { customStarnameAminoTypes } from "./types/aminoTypes";
+import { Amount } from "./types/amount";
 import { ResponsePage } from "./types/apiPage";
 import { AssetResource } from "./types/assetResource";
 import { Balance } from "./types/balance";
 import { ChainMap } from "./types/chainMap";
+import { FeeEstimator } from "./types/feeEstimator";
 import { MsgsAndMemo } from "./types/msgsAndMemo";
 import { Pager } from "./types/pager";
 import { PostTxResult } from "./types/postTxResult";
+import { Starname } from "./types/starname";
 import { TokenLike } from "./types/tokenLike";
 import { Transaction } from "./types/transaction";
 import { Tx } from "./types/tx";
-import { estimateFee, GasConfig } from "./utils/estimateFee";
+import { constructTransferrableObject } from "./utils/constructTransferrableObject";
+import { createResourcesFromAddressGroup } from "./utils/createResourcesFromAddressGroup";
+import { estimateFee } from "./utils/estimateFee";
+import { Buffer } from "buffer/";
 
 export interface WalletOptions {
-  readonly starnameClient: StarnameClient;
-  readonly gasConfig: GasConfig;
+  readonly feeEstimator: FeeEstimator;
 }
 
 export class Wallet {
   private readonly starnameClient: StarnameClient;
   private readonly signer: Signer;
-  private readonly gasConfig: GasConfig;
+  private readonly feeEstimator: FeeEstimator;
 
-  constructor(signer: Signer, options: WalletOptions) {
-    if (!options.starnameClient) {
-      throw new Error(
-        "cannot create a wallet without access to the API object",
-      );
-    }
-    this.starnameClient = options.starnameClient;
+  constructor(signer: Signer, client: StarnameClient, options?: WalletOptions) {
+    this.starnameClient = client;
     this.signer = signer;
-    this.gasConfig = options.gasConfig;
+    this.feeEstimator = options ? options.feeEstimator : estimateFee;
   }
 
   protected async signAndBroadcast(
     msgsAndMemo: MsgsAndMemo,
   ): Promise<PostTxResult> {
     const { starnameClient } = this;
-    if (starnameClient === undefined) {
-      throw new Error("wallet not initialized properly");
-    }
     try {
+      // signing
       const txRaw = await this.signMsgsAndMemo(msgsAndMemo);
+      // transpile
       const bytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
+      // broadcast
       return starnameClient.broadcastTx(bytes);
     } catch (exception: any) {
       if (exception.message !== "Request rejected") {
@@ -85,6 +104,9 @@ export class Wallet {
           height: 0,
           code: TxRejected,
           rawLog: "",
+          amount: [],
+          events: [],
+          gas: "",
         };
       }
     }
@@ -95,29 +117,30 @@ export class Wallet {
     msgsAndMemo: MsgsAndMemo,
   ): Promise<TxRaw> {
     const { messages, memo } = msgsAndMemo;
-    const { starnameClient } = this;
     const address = await this.getAddress();
-    const fee = estimateFee(messages, this.gasConfig);
+    const fee = this.feeEstimator(messages);
     const registry = new StarnameRegistry();
 
+    const defaultAminoTypes = {
+      ...createAuthzAminoConverters(),
+      ...createBankAminoConverters(),
+      ...createDistributionAminoConverters(),
+      ...createGovAminoConverters(),
+      ...createStakingAminoConverters(""),
+      ...createIbcAminoConverters(),
+      ...createFeegrantAminoConverters(),
+      ...createVestingAminoConverters(),
+    };
+
     const client = await SigningStargateClient.offline(signer, {
-      registry: registry,
+      registry,
       aminoTypes: new AminoTypes({
-        additions: aminoTypes,
-        prefix: "star",
+        ...defaultAminoTypes,
+        ...customStarnameAminoTypes,
       }),
     });
 
-    const account = await starnameClient.getAccount(address);
-    if (!account) {
-      throw new Error(`could not find account for ${address}`);
-    }
-
-    return await client.sign(address, messages, fee, memo, {
-      accountNumber: account.accountNumber,
-      sequence: account.sequence,
-      chainId: starnameClient.getChainId(),
-    });
+    return client.sign(address, messages, fee, memo);
   }
 
   public async signMsgsAndMemo(msgsAndMemo: MsgsAndMemo): Promise<TxRaw> {
@@ -139,14 +162,15 @@ export class Wallet {
     return this.signer;
   }
 
+  public disconnect(): void {
+    return this.signer.disconnect();
+  }
+
   public getBalances(): Task<ReadonlyArray<Balance>> {
     let task: Task<ReadonlyArray<Balance>> | null = null;
     return {
       run: async (): Promise<ReadonlyArray<Balance>> => {
         const { starnameClient } = this;
-        if (starnameClient === undefined) {
-          throw new Error("wallet not initialized properly");
-        }
         const signer: Signer = this.getSigner();
         task = starnameClient.getBalance(await signer.getAddress());
         return task.run();
@@ -166,9 +190,6 @@ export class Wallet {
     return {
       run: async (): Promise<Record<string, ResponsePage<Transaction>>> => {
         const { starnameClient } = this;
-        if (starnameClient === undefined) {
-          throw new Error("wallet not initialized properly");
-        }
         const signer: Signer = this.getSigner();
         task = starnameClient.getTransactions(await signer.getAddress(), page);
         return task.run();
@@ -198,6 +219,7 @@ export class Wallet {
     targets: ReadonlyArray<AssetResource>,
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
+    memo = "",
   ): Promise<PostTxResult> {
     const address = await this.getAddress();
     const message: Tx<MsgReplaceAccountResources> = {
@@ -222,7 +244,7 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
@@ -246,6 +268,7 @@ export class Wallet {
     targets: ReadonlyArray<AssetResource>,
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
+    memo = "",
   ): Promise<PostTxResult> {
     const address = await this.getAddress();
     const message: Tx<MsgReplaceAccountResources> = {
@@ -270,18 +293,170 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
+    });
+  }
+
+  public async addAccountCertificate(
+    name: string,
+    domain: string,
+    certificate: string,
+    memo = "",
+  ): Promise<PostTxResult> {
+    const owner = await this.getAddress();
+    const addAccountCertificateMsg: Tx<MsgAddAccountCertificate> = {
+      typeUrl: TxType.Starname.AddAccountCertificate,
+      value: {
+        domain,
+        name,
+        owner,
+        newCertificate: fromBase64(Buffer.from(certificate).toString("base64")),
+        payer: "",
+      },
+    };
+
+    return this.signAndBroadcast({
+      messages: [addAccountCertificateMsg],
+      memo,
+    });
+  }
+
+  /**
+   *
+   * @param name
+   * @param domain
+   * @param b64Certificate - A base64 encoded JSON certificate
+   * @returns PostTxResult
+   */
+  public async deleteAccountCertificate(
+    name: string,
+    domain: string,
+    b64Certificate: string,
+    memo = "",
+  ): Promise<PostTxResult> {
+    const owner = await this.getAddress();
+    const deleteAccountCertificateMsg: Tx<MsgDeleteAccountCertificate> = {
+      typeUrl: TxType.Starname.DeleteAccountCertificate,
+      value: {
+        name,
+        domain,
+        deleteCertificate: fromBase64(b64Certificate),
+        owner,
+        payer: "",
+      },
+    };
+
+    return this.signAndBroadcast({
+      messages: [deleteAccountCertificateMsg],
+      memo,
+    });
+  }
+
+  public async createEscrow(
+    amount: Amount,
+    item: Starname,
+    deadline: Date,
+    memo = "",
+  ): Promise<PostTxResult> {
+    if (this.getSignerType() === SignerType.Ledger)
+      throw new Error("ledger unsupported");
+    const address = await this.getAddress();
+    const createEscrowMsg: Tx<MsgCreateEscrow> = {
+      typeUrl: TxType.Escrow.CreateEscrow,
+      value: {
+        seller: address,
+        feePayer: "",
+        price: [...amount.toCoins()],
+        deadline: Math.floor(deadline.getTime() / 1000),
+        object: constructTransferrableObject(item),
+      },
+    };
+    return this.signAndBroadcast({
+      messages: [createEscrowMsg],
+      memo,
+    });
+  }
+
+  public async updateEscrow(
+    id: string,
+    newAmount: Amount,
+    newDeadline: Date,
+    newSeller: string,
+    memo = "",
+  ): Promise<PostTxResult> {
+    if (this.getSignerType() === SignerType.Ledger)
+      throw new Error("ledger unsupported");
+    const address = await this.getAddress();
+    const updateEscrowMsg: Tx<MsgUpdateEscrow> = {
+      typeUrl: TxType.Escrow.UpdateEscrow,
+      value: {
+        id,
+        feePayer: "",
+        price: [...newAmount.toCoins()],
+        deadline: Math.floor(newDeadline.getTime() / 1000),
+        seller: newSeller,
+        updater: address,
+      },
+    };
+
+    return this.signAndBroadcast({
+      messages: [updateEscrowMsg],
+      memo,
+    });
+  }
+
+  public async transferToEscrow(
+    id: string,
+    amount: Amount,
+    memo = "",
+  ): Promise<PostTxResult> {
+    if (this.getSignerType() === SignerType.Ledger)
+      throw new Error("ledger unsupported");
+
+    const address = await this.getAddress();
+
+    const transferToEscrowMsg: Tx<MsgTransferToEscrow> = {
+      typeUrl: TxType.Escrow.TransferToEscrow,
+      value: {
+        id,
+        feePayer: "",
+        amount: [...amount.toCoins()],
+        sender: address,
+      },
+    };
+
+    return this.signAndBroadcast({
+      messages: [transferToEscrowMsg],
+      memo,
+    });
+  }
+
+  public async deleteEscrow(id: string, memo = ""): Promise<PostTxResult> {
+    if (this.getSignerType() === SignerType.Ledger)
+      throw new Error("ledger unsupported");
+    const address = await this.getAddress();
+    const refundEscrowMsg: Tx<MsgRefundEscrow> = {
+      typeUrl: TxType.Escrow.RefundEscrow,
+      value: {
+        id,
+        sender: address,
+        feePayer: "",
+      },
+    };
+
+    return this.signAndBroadcast({
+      messages: [refundEscrowMsg],
+      memo,
     });
   }
 
   public async registerDomain(
     domain: string,
     type: "closed" | "open" = "closed",
+    expired = false,
+    memo = "",
   ): Promise<PostTxResult> {
     const { starnameClient } = this;
-    if (starnameClient === undefined) {
-      throw new Error("wallet not initialized properly");
-    }
     const address: string = await this.getAddress();
     const message: Tx<MsgRegisterDomain> = {
       typeUrl: TxType.Starname.RegisterDomain,
@@ -295,24 +470,24 @@ export class Wallet {
     };
 
     return this.signAndBroadcast({
-      messages: [message],
-      memo: "",
+      messages: [
+        ...(expired
+          ? [
+              {
+                typeUrl: TxType.Starname.DeleteDomain,
+                value: {
+                  domain: domain,
+                  owner: address,
+                  payer: "",
+                },
+              },
+            ]
+          : []),
+        message,
+      ],
+      memo,
     });
   }
-
-  private createResourcesFromAddressGroup = (
-    addressGroup: AddressGroup,
-    chains: ChainMap,
-  ): Array<Resource> => {
-    return Object.keys(addressGroup).map((chainId) => {
-      const symbol = chains[chainId].symbol;
-      return {
-        uri: `asset:${symbol.toLowerCase()}`,
-        // signers sends it on 0th index
-        resource: addressGroup[chainId][0].address,
-      };
-    });
-  };
 
   public getOtherChainResources = async (
     chains: ChainMap,
@@ -324,24 +499,20 @@ export class Wallet {
       case SignerType.Google:
       case SignerType.SeedPhrase: {
         // Now request signer to provide addressGroup ( for chains )
-        try {
-          const addressGroup = await signer.getAddressGroup(chains);
-          return this.createResourcesFromAddressGroup(addressGroup, chains);
-        } catch (error) {
-          console.warn(error);
-        }
-        break;
+        const addressGroup = await signer.getAddressGroup(chains);
+        return createResourcesFromAddressGroup(addressGroup, chains);
       }
       default:
         return [];
     }
-    return [];
   };
 
   public async registerAccount(
     name: string,
     domain: string,
     chains?: ChainMap,
+    expired = false,
+    memo = "",
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
     const resources: Array<Resource> = [];
@@ -356,7 +527,7 @@ export class Wallet {
         const otherChainResources = await this.getOtherChainResources(chains);
         resources.push(...otherChainResources);
       } catch (error) {
-        console.warn("Failure getting otherChainResources");
+        console.warn("Failure getting other chain resources");
       }
     }
 
@@ -374,14 +545,31 @@ export class Wallet {
     };
 
     return this.signAndBroadcast({
-      messages: [message],
-      memo: "",
+      messages: [
+        ...(expired
+          ? [
+              {
+                typeUrl: TxType.Starname.DeleteAccount,
+                value: {
+                  domain,
+                  name,
+                  owner: address,
+                  payer: "",
+                },
+              },
+            ]
+          : []),
+        message,
+      ],
+      memo,
     });
   }
 
   public async transferDomain(
     domain: string,
     recipient: string,
+    transferFlag: 0 | 1 | 2 = 0,
+    memo = "",
   ): Promise<PostTxResult> {
     const message: Tx<MsgTransferDomain> = {
       typeUrl: TxType.Starname.TransferDomain,
@@ -389,14 +577,14 @@ export class Wallet {
         domain: domain,
         owner: await this.getAddress(),
         newAdmin: recipient,
-        transferFlag: 0,
+        transferFlag,
         payer: "",
       },
     };
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
@@ -404,6 +592,8 @@ export class Wallet {
     name: string,
     domain: string,
     recipient: string,
+    reset = true,
+    memo = "",
   ): Promise<PostTxResult> {
     const address = await this.getAddress();
     const message: Tx<MsgTransferAccount> = {
@@ -413,18 +603,18 @@ export class Wallet {
         domain: domain,
         owner: address,
         newOwner: recipient,
-        reset: true,
+        reset,
         payer: "",
       },
     };
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
-  public async deleteDomain(domain: string): Promise<PostTxResult> {
+  public async deleteDomain(domain: string, memo = ""): Promise<PostTxResult> {
     const address: string = await this.getAddress();
     const message: Tx<MsgDeleteDomain> = {
       typeUrl: TxType.Starname.DeleteDomain,
@@ -437,13 +627,14 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
   public async deleteAccount(
     name: string,
     domain: string,
+    memo = "",
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
     const message: Tx<MsgDeleteAccount> = {
@@ -458,11 +649,11 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
-  public async renewDomain(domain: string): Promise<PostTxResult> {
+  public async renewDomain(domain: string, memo = ""): Promise<PostTxResult> {
     const message: Tx<MsgRenewDomain> = {
       typeUrl: TxType.Starname.RenewDomain,
       value: {
@@ -474,13 +665,14 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
   public async renewAccount(
     name: string,
     domain: string,
+    memo = "",
   ): Promise<PostTxResult> {
     const address = await this.getAddress();
     const message: Tx<MsgRenewAccount> = {
@@ -495,87 +687,95 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 
   public async delegateAmount(
     validatorAddress: string,
-    amount: number,
-    token: TokenLike,
+    amount: Amount,
     memo = "",
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
-    const uiov: number = amount * token.subunitsPerUnit;
     const message: Tx<MsgDelegate> = {
       typeUrl: TxType.Staking.Delegate,
       value: {
         delegatorAddress: address,
         validatorAddress: validatorAddress,
-        amount: {
-          amount: uiov.toFixed(0),
-          denom: token.subunitName,
-        },
+        amount: amount.toCoins()[0],
       },
     };
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: memo,
+      memo,
     });
   }
 
   public async unDelegateAmount(
     validatorAddress: string,
-    amount: number,
-    token: TokenLike,
+    amount: Amount,
     memo = "",
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
-    const uiov: number = amount * token.subunitsPerUnit;
     const message: Tx<MsgUndelegate> = {
       typeUrl: TxType.Staking.Undelegate,
       value: {
         delegatorAddress: address,
         validatorAddress: validatorAddress,
-        amount: {
-          amount: uiov.toFixed(0),
-          denom: token.subunitName,
-        },
+        amount: amount.toCoins()[0],
       },
     };
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: memo,
+      memo,
     });
   }
 
   public async redelegateAmount(
     validatorSource: string,
     validatorDestination: string,
-    amount: number,
-    token: TokenLike,
+    amount: Amount,
     memo = "",
   ): Promise<PostTxResult> {
     const address: string = await this.getAddress();
-    const uiov: number = amount * token.subunitsPerUnit;
     const message: Tx<MsgBeginRedelegate> = {
       typeUrl: TxType.Staking.BeginRedelegate,
       value: {
         delegatorAddress: address,
         validatorSrcAddress: validatorSource,
         validatorDstAddress: validatorDestination,
-        amount: {
-          amount: uiov.toFixed(0),
-          denom: token.subunitName,
-        },
+        amount: amount.toCoins()[0],
       },
     };
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: memo,
+      memo,
+    });
+  }
+
+  public async claimReward(
+    validatorAddresses: ReadonlyArray<string>,
+    memo = "",
+  ): Promise<PostTxResult> {
+    const address: string = await this.getAddress();
+    const composeMessage = (
+      validatorAddr: string,
+    ): Tx<MsgWithdrawDelegatorReward> => {
+      return {
+        typeUrl: TxType.Distribution.WithdrawDelegatorReward,
+        value: {
+          delegatorAddress: address,
+          validatorAddress: validatorAddr,
+        },
+      };
+    };
+
+    return this.signAndBroadcast({
+      messages: validatorAddresses.map(composeMessage),
+      memo,
     });
   }
 
@@ -603,7 +803,7 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: memo,
+      memo,
     });
   }
 
@@ -611,6 +811,7 @@ export class Wallet {
     name: string,
     domain: string,
     uri: string | null,
+    memo = "",
   ): Promise<PostTxResult> {
     const address = await this.getAddress();
     const message: Tx<MsgReplaceAccountMetadata> = {
@@ -626,7 +827,7 @@ export class Wallet {
 
     return this.signAndBroadcast({
       messages: [message],
-      memo: "",
+      memo,
     });
   }
 

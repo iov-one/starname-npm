@@ -20,6 +20,10 @@ export interface Fees {
   transferDomainClosed: number;
   transferDomainOpen: number;
   renewDomainOpen: number;
+  createEscrow: number;
+  updateEscrow: number;
+  transferToEscrow: number;
+  refundEscrow: number;
 }
 
 export interface ApiFees {
@@ -44,6 +48,10 @@ export interface ApiFees {
   transfer_domain_closed: string;
   transfer_domain_open: string;
   renew_domain_open: string;
+  create_escrow: string;
+  update_escrow: string;
+  transfer_to_escrow: string;
+  refund_escrow: string;
 }
 
 export interface FeesResponse {
@@ -75,4 +83,8 @@ export const transformFeesResponse = (fees: ApiFees): Fees => ({
   transferDomainClosed: Number(fees.transfer_domain_closed),
   transferDomainOpen: Number(fees.transfer_account_open),
   renewDomainOpen: Number(fees.renew_domain_open),
+  createEscrow: Number(fees.create_escrow),
+  updateEscrow: Number(fees.update_escrow),
+  transferToEscrow: Number(fees.transfer_to_escrow),
+  refundEscrow: Number(fees.refund_escrow),
 });

@@ -18,7 +18,9 @@ export interface ApiConfig {
   readonly validatorLogo: UrlBuilder;
   readonly userDelegations: UrlBuilder;
   readonly userUnbondings: UrlBuilder;
-  readonly userTotalRewards: UrlBuilder;
+  readonly userRewards: UrlBuilder;
   readonly balances: UrlBuilder;
   readonly domainsWithOwner: UrlBuilder;
+  readonly escrowWithId: UrlBuilder;
+  readonly escrows: UrlBuilder;
 }

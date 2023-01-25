@@ -99,5 +99,5 @@ const request = <T>(
 };
 
 export const Get = <T>(url: string): Task<T> => request<T>("GET", url);
-export const Post = <T, D = any>(url: string, data: D | Promise<D>): Task<T> =>
+export const Post = <T>(url: string, data: { [key: string]: any }): Task<T> =>
   request<T>("POST", url, data);

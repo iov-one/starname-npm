@@ -1,4 +1,3 @@
-import { defaultBech32Config } from "@chainapsis/cosmosjs/core/bech32Config";
 import {
   AminoSignResponse,
   encodeSecp256k1Pubkey,
@@ -7,7 +6,7 @@ import {
 } from "@cosmjs/amino";
 import { fromBase64 } from "@cosmjs/encoding";
 import { AccountData, Algo, OfflineSigner } from "@cosmjs/proto-signing";
-import { Keplr, Key } from "@keplr-wallet/types";
+import { Bech32Config, Keplr, Key } from "@keplr-wallet/types";
 
 import { AddressGroup } from "../types/addressGroup";
 import { ChainMap } from "../types/chainMap";
@@ -36,6 +35,25 @@ declare global {
   }
 }
 
+const defaultBech32Config = (
+  mainPrefix: string,
+  validatorPrefix: string = "val",
+  consensusPrefix: string = "cons",
+  publicPrefix: string = "pub",
+  operatorPrefix: string = "oper",
+): Bech32Config => {
+  return {
+    bech32PrefixAccAddr: mainPrefix,
+    bech32PrefixAccPub: mainPrefix + publicPrefix,
+    bech32PrefixValAddr: mainPrefix + validatorPrefix + operatorPrefix,
+    bech32PrefixValPub:
+      mainPrefix + validatorPrefix + operatorPrefix + publicPrefix,
+    bech32PrefixConsAddr: mainPrefix + validatorPrefix + consensusPrefix,
+    bech32PrefixConsPub:
+      mainPrefix + validatorPrefix + consensusPrefix + publicPrefix,
+  };
+};
+
 export class KeplrSigner implements Signer {
   public readonly type: SignerType = SignerType.Keplr;
   private publicKey: SinglePubkey | null = null;
@@ -61,27 +79,17 @@ export class KeplrSigner implements Signer {
     const { keplr } = this;
     // enable these chains first
     if (keplr === null) throw new Error("Keplr extension not initialized");
-    try {
-      // get permissions for using chains
-      // FIXME: keplr.enable current one is just a workaround
-      // until keplr updates its wallet types to support chainIds[] in enable()
-      const chainIds = Object.keys(chains);
-      await window.keplr.enable(chainIds as any);
-      const resolvedAddressData = await Promise.all(
-        chainIds.map(async (chainId) => {
-          const { bech32Address, algo, pubKey } = await keplr.getKey(chainId);
-          return [
-            { address: bech32Address, algo: algo as Algo, pubkey: pubKey },
-          ];
-        }),
-      );
-      return chainIds.reduce((addressGroup, chainId, idx) => {
-        return { ...addressGroup, [chainId]: resolvedAddressData[idx] };
-      }, {});
-    } catch (error) {
-      console.warn(error);
-      throw new Error("Request for chain permissions rejected");
-    }
+    const chainIds = Object.keys(chains);
+    await keplr.enable(chainIds);
+    const resolvedAddressData = await Promise.all(
+      chainIds.map(async (chainId) => {
+        const { bech32Address, algo, pubKey } = await keplr.getKey(chainId);
+        return [{ address: bech32Address, algo: algo as Algo, pubkey: pubKey }];
+      }),
+    );
+    return chainIds.reduce((addressGroup, chainId, idx) => {
+      return { ...addressGroup, [chainId]: resolvedAddressData[idx] };
+    }, {});
   }
 
   private static getFeatures(): Array<string> {
@@ -130,9 +138,13 @@ export class KeplrSigner implements Signer {
       features: KeplrSigner.getFeatures(),
       bech32Config: bech32Config,
       currencies: [coin],
-      feeCurrencies: [coin],
+      feeCurrencies: [
+        {
+          ...coin,
+          gasPriceStep: config.gasPriceStep,
+        },
+      ],
       coinType: config.coinType,
-      gasPriceStep: config.gasPriceStep,
     });
     // Now that we suggested the chain let's initialize it
     await keplr.enable(chainId);
@@ -168,8 +180,13 @@ export class KeplrSigner implements Signer {
     } else if (keplr === null) {
       throw new Error("keplr extension not initialized correctly");
     }
-
-    return keplr.signAmino(this.chainId, signerAddress, signDoc);
+    // TODO: better would be to use keplr.signArbitrary after
+    // https://github.com/aleph-im/pyaleph/issues/362 has been implemented
+    return keplr.signAmino(signDoc.chain_id, signerAddress, signDoc, {
+      disableBalanceCheck: true,
+      preferNoSetFee: true,
+      preferNoSetMemo: true,
+    });
   }
 
   public getOfflineSigner(): OfflineSigner {
@@ -179,5 +196,9 @@ export class KeplrSigner implements Signer {
     }
 
     return offlineSigner;
+  }
+
+  public disconnect(): void {
+    return;
   }
 }

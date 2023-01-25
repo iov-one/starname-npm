@@ -1,4 +1,4 @@
-import { createWallet, randomName, setupTest } from "../jest.setup";
+import { createClient, createWallet, randomName } from "../jest.setup";
 import { StarnameClient } from "../starnameClient";
 import { FetchError } from "../starnameClient/http";
 import { isTransactionSuccess } from "../types/postTxResult";
@@ -11,7 +11,7 @@ describe("Stargate Api Implementation", (): void => {
   let starnameClient: StarnameClient;
 
   beforeAll(async (): Promise<void> => {
-    starnameClient = await setupTest();
+    starnameClient = await createClient();
     wallet = await createWallet(starnameClient);
   });
 
@@ -19,7 +19,7 @@ describe("Stargate Api Implementation", (): void => {
 
   it("Throws when querying a starname if it does not exist", async (): Promise<void> => {
     // Register a starname
-    const starnameTask = starnameClient.getStarname(`*${testName}`);
+    const starnameTask = starnameClient.getStarnameInfo(`*${testName}`);
     await expect(starnameTask.run()).rejects.toEqual(
       new FetchError(
         3,
@@ -39,7 +39,7 @@ describe("Stargate Api Implementation", (): void => {
   it("Can query an existing starname correctly", async (): Promise<void> => {
     const address = await wallet.getAddress();
     // Register a starname
-    const starnameTask = starnameClient.getStarname(`*${testName}`);
+    const starnameTask = starnameClient.getStarnameInfo(`*${testName}`);
     const starname = await starnameTask.run();
     expect(starname.name).toEqual("");
     expect(starname.domain.name).toEqual(testName);

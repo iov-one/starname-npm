@@ -50,4 +50,8 @@ export class DummySigner implements Signer {
   public getOfflineSigner(): OfflineSigner {
     return {} as OfflineSigner;
   }
+
+  public disconnect(): void {
+    return;
+  }
 }

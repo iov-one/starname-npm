@@ -4,7 +4,7 @@ import {
   serializeSignDoc,
   StdSignDoc,
 } from "@cosmjs/amino";
-import { fromBase64 } from "@cosmjs/encoding";
+import { fromBase64, toBase64 } from "@cosmjs/encoding";
 import { AccountData, OfflineSigner } from "@cosmjs/proto-signing";
 import {
   IovLedgerApp,
@@ -14,7 +14,7 @@ import {
   isIovLedgerAppSignature,
 } from "@iov/ledger-iovns";
 import Transport from "@ledgerhq/hw-transport";
-import TransportWebUSB from "@ledgerhq/hw-transport-webusb";
+// import TransportWebUSB from "@ledgerhq/hw-transport-webusb";
 import { signatureImport } from "secp256k1";
 
 import { AddressGroup } from "../types/addressGroup";
@@ -39,7 +39,8 @@ export class LedgerSigner implements Signer {
   public type: SignerType = SignerType.Ledger;
 
   public async initialize(chainId: string, confirm = false): Promise<boolean> {
-    const transport: Transport = await TransportWebUSB.create();
+    // const transport: Transport = await TransportWebUSB.create();
+    const transport = {} as Transport;
     const ledger: IovLedgerApp = new IovLedgerApp(transport);
     const result: IovLedgerAppAddress | IovLedgerAppErrorState =
       await ledger.getAddress(DEFAULT_ADDRESS_INDEX, confirm);
@@ -74,8 +75,7 @@ export class LedgerSigner implements Signer {
     const { addressInfo } = this;
     if (addressInfo === null) return "";
     const { pubkey } = addressInfo;
-    const buffer: Buffer = Buffer.from(pubkey);
-    return buffer.toString("base64");
+    return toBase64(pubkey);
   }
 
   public async getAddress(): Promise<string> {

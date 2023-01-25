@@ -3,6 +3,7 @@ import { Coin, StdFee } from "@cosmjs/stargate";
 
 import { TxType } from "../starnameRegistry";
 import { isKeyOf } from "../utils/isKeyOf";
+import { defaultGasConfig } from "./defaultGasConfig";
 
 export interface GasConfig {
   readonly gasMap: GasMap;
@@ -10,12 +11,7 @@ export interface GasConfig {
 }
 
 export interface GasMap {
-  readonly "/starnamed.x.starname.v1beta1.MsgRenewDomain": number;
-  readonly "/starnamed.x.starname.v1beta1.MsgReplaceAccountResources": number;
-  readonly "/starnamed.x.starname.v1beta1.MsgTransferDomain": number;
-  readonly "cosmos-sdk/MsgSend": number;
-  readonly "cosmos-sdk/MsgBeginRedelegate": number;
-  readonly default: number;
+  [msgTypeUrl: string]: number;
 }
 
 const getResourcesCount = (msg: EncodeObject): number => {
@@ -23,29 +19,32 @@ const getResourcesCount = (msg: EncodeObject): number => {
   if ("newResources" in value) {
     const { newResources } = value;
     return newResources.length;
+  } else if ("resources" in value) {
+    const { resources } = value;
+    return resources.length;
   } else {
-    throw new Error("not a set resources message");
+    throw new Error("not a resources related message");
   }
 };
 
-export const estimateFee = (
-  msgs: ReadonlyArray<EncodeObject>,
-  options: GasConfig,
-): StdFee => {
-  const { gasMap, gasPrice } = options;
+export const estimateFee = (msgs: ReadonlyArray<EncodeObject>): StdFee => {
+  const { gasMap, gasPrice } = defaultGasConfig;
   const totalGas = msgs.reduce(
-    (totalGas: number, msg: EncodeObject): number => {
+    (_totalGas: number, msg: EncodeObject): number => {
       const msgType = msg.typeUrl;
-      if (msgType === TxType.Starname.ReplaceAccountResources) {
-        const msgGas: number = gasMap[msgType] ?? gasMap.default;
-        return Math.max(
-          msgGas * getResourcesCount(msg) + gasMap.default / 2,
-          gasMap.default / 2,
+      if (
+        msgType === TxType.Starname.RegisterAccount ||
+        msgType === TxType.Starname.ReplaceAccountResources
+      ) {
+        const msgGas: number | undefined =
+          gasMap[TxType.Starname.ReplaceAccountResources];
+        return (
+          _totalGas + (msgGas * getResourcesCount(msg) + gasMap.default / 2)
         );
       } else if (isKeyOf(msgType, gasMap)) {
-        return gasMap[msgType];
+        return _totalGas + gasMap[msgType];
       } else {
-        return gasMap.default;
+        return _totalGas + gasMap.default;
       }
     },
     0,

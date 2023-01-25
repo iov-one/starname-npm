@@ -7,6 +7,7 @@ export const getStargateEndpoints = (
 ): ApiConfig => {
   const starname = `${apiUrl}/starname/v1beta1`;
   const cosmos = `${apiUrl}/cosmos`;
+  const escrow = `${apiUrl}/escrow`;
 
   return {
     apiUrl: apiUrl,
@@ -34,12 +35,14 @@ export const getStargateEndpoints = (
       `${cosmos}/staking/v1beta1/delegations/${address}`,
     userUnbondings: (address: string): string =>
       `${cosmos}/staking/v1beta1/delegators/${address}/unbonding_delegations`,
-    userTotalRewards: (address: string): string =>
+    userRewards: (address: string): string =>
       `${cosmos}/distribution/v1beta1/delegators/${address}/rewards`,
     balances: (address: string): string =>
       `${cosmos}/bank/v1beta1/balances/${address}`,
     domainsWithOwner: (owner: string | Promise<string>): string =>
       `${starname}/domains/owner/${owner}`,
     domainInfo: (domain: string): string => `${starname}/domain/${domain}`,
+    escrowWithId: (escrowId: string): string => `${escrow}/escrow/${escrowId}`,
+    escrows: (query: string): string => `${escrow}/escrows${query ?? ""}`,
   };
 };

@@ -1,7 +1,7 @@
 import { Asset } from "@iov/asset-directory";
 
 import { FAVORITE_ASSET_URI } from "../constants/favoriteAssetUri";
-import { Resource } from "../proto/types";
+import { Resource } from "../proto/iov/starname/v1beta1/types";
 import { StarnameClient } from "../starnameClient";
 
 export interface AssetResource {
@@ -47,6 +47,7 @@ export const getTargetsFromResources = (
             symbol: symbol.toUpperCase(),
             logo: "",
             "trustwallet-uid": null,
+            coingeckoId: null,
           },
         };
       } else {

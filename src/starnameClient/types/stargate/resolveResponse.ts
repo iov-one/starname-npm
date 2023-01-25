@@ -1,5 +1,5 @@
-import { Account } from "../../../proto/types";
+import { ApiAccount } from "../../../types/account";
 
 export interface StargateResolveResponse {
-  account: Account;
+  account: ApiAccount;
 }

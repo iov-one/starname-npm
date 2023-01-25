@@ -1,24 +1,32 @@
 import { Coin } from "@cosmjs/amino";
 import { EncodeObject } from "@cosmjs/proto-signing";
 import { Account as CosmosAccount, StargateClient } from "@cosmjs/stargate";
-import assets, { Asset } from "@iov/asset-directory";
 
 import { sortTransactions } from "../logic/sortTransactions";
-import { Account, Domain } from "../proto/types";
+import { EscrowState } from "../proto/iov/escrow/v1beta1/types";
 import { TxType } from "../starnameRegistry";
+import { Account, transformAccountResponse } from "../types/account";
 import { Amount, toInternalCoins } from "../types/amount";
 import { ResponsePage } from "../types/apiPage";
 import { Balance } from "../types/balance";
 import { ValidatorLogoResponse } from "../types/delegationValidator";
+import { Domain, transformDomainResponmse } from "../types/domain";
+import {
+  ApiEscrow,
+  Escrow,
+  EscrowObject,
+  isEscrowDomainObject,
+} from "../types/escrow";
 import { Fees, transformFeesResponse } from "../types/fees";
 import { Pager } from "../types/pager";
 import { PostTxResult } from "../types/postTxResult";
-import { Starname } from "../types/resolveResponse";
+import { Reward } from "../types/rewardsResponse";
 import {
   Settings,
   StargateSettingsResponse,
   transformSettingsResponse,
 } from "../types/settings";
+import { StarnameInfo } from "../types/starnameInfo";
 import { TokenLike } from "../types/tokenLike";
 import { Transaction } from "../types/transaction";
 import { Unbonding } from "../types/unbondingsResponse";
@@ -31,8 +39,10 @@ import { Get } from "./http";
 import { Task } from "./task";
 import { CosmosAccountResponse } from "./types/stargate/accountResponse";
 import { StargateBalanceResponse } from "./types/stargate/balanceResponse";
+import { BondStatus } from "./types/stargate/bondStatus";
 import { StargateDomainInfoResponse } from "./types/stargate/domainInfoResponse";
 import { StargateFeesResponse } from "./types/stargate/feesResponse";
+import { GenericApiResponse } from "./types/stargate/genericApiResponse";
 import { StargateResolveResponse } from "./types/stargate/resolveResponse";
 import { ResourceAccountsResponse } from "./types/stargate/resourceAccountsResponse";
 import { StargateRewardsResponse } from "./types/stargate/rewardsResponse";
@@ -41,7 +51,7 @@ import {
   StargateSearchTxResponse,
 } from "./types/stargate/searchTxResponse";
 import { StargateTransaction } from "./types/stargate/transaction";
-import queries, { StargateTxQuery } from "./types/stargate/txQuery";
+import { StargateTxQuery, defaultTxQueries } from "./types/stargate/txQuery";
 import { StargateUserDelegationsResponse } from "./types/stargate/userDelegationsResponse";
 import { StargateUserUnbondingsResponse } from "./types/stargate/userUndondingsResponse";
 import {
@@ -49,6 +59,8 @@ import {
   StargateValidatorResponse,
 } from "./types/stargate/validatorResponse";
 import { StargateValidatorsResponse } from "./types/stargate/validatorsResponse";
+import { Buffer } from "buffer/";
+import { Asset } from "../types/asset";
 
 export class StarnameClient {
   private stargateClient: StargateClient | null = null;
@@ -72,9 +84,10 @@ export class StarnameClient {
     rpcUrl: string,
     apiUrl: string,
     validatorsInfoUrl: string,
-    tokens: Record<string, TokenLike>,
+    chainTokens: Record<string, TokenLike>,
     mainAsset: Asset,
     broker?: string,
+    assets?: ReadonlyArray<Asset>,
   ): Promise<StarnameClient> {
     const starnameClient = new StarnameClient();
     starnameClient.api = getStargateEndpoints(
@@ -83,15 +96,10 @@ export class StarnameClient {
       validatorsInfoUrl,
     );
     // FIXME: use the asset directory here right?
-    starnameClient.tokens = tokens;
+    starnameClient.tokens = chainTokens;
     starnameClient.settings = await starnameClient.loadSettings();
     starnameClient.fees = await starnameClient.loadFees();
     starnameClient.mainAsset = mainAsset;
-    const filteredAssets: ReadonlyArray<Asset> = assets
-      .slice()
-      .sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
-        n1.localeCompare(n2),
-      );
     if (broker) {
       try {
         starnameClient.broker = await Task.toPromise(
@@ -101,17 +109,24 @@ export class StarnameClient {
         starnameClient.broker = "";
       }
     }
-    starnameClient.assets = filteredAssets.reduce(
-      (
-        previousValue: Record<string, Asset>,
-        asset: Asset,
-      ): Record<string, Asset> => {
-        return { ...previousValue, [asset.symbol]: asset };
-      },
-      {},
-    );
+    if (assets) {
+      starnameClient.assets = assets
+        .slice()
+        .sort(({ name: n1 }: Asset, { name: n2 }: Asset): number =>
+          n1.localeCompare(n2),
+        )
+        .reduce(
+          (
+            previousValue: Record<string, Asset>,
+            asset: Asset,
+          ): Record<string, Asset> => {
+            return { ...previousValue, [asset.symbol]: asset };
+          },
+          {},
+        );
+    }
     starnameClient.stargateClient = await StargateClient.connect(rpcUrl);
-    starnameClient.chainId = starnameClient.getChainId();
+    starnameClient.chainId = await starnameClient.stargateClient.getChainId();
 
     return starnameClient;
   }
@@ -187,7 +202,7 @@ export class StarnameClient {
     return {
       run: async (): Promise<ReadonlyArray<string>> => {
         const { accounts } = await task.run();
-        return accounts.map((account: Account): string =>
+        return accounts.map((account): string =>
           [account.name, account.domain].join("*"),
         );
       },
@@ -205,7 +220,7 @@ export class StarnameClient {
     return {
       run: async (): Promise<Account> => {
         const { account } = await task.run();
-        return account;
+        return transformAccountResponse(account);
       },
       abort: (): void => {
         task.abort();
@@ -221,13 +236,7 @@ export class StarnameClient {
       run: async (): Promise<Domain> => {
         const result = await task.run();
         const { domain }: StargateDomainInfoResponse = result;
-        return {
-          name: domain.name,
-          admin: domain.admin,
-          validUntil: Number(domain.validUntil),
-          type: domain.type,
-          broker: domain.broker,
-        };
+        return transformDomainResponmse(domain);
       },
       abort: () => task.abort(),
     };
@@ -249,7 +258,7 @@ export class StarnameClient {
     return {
       run: async (): Promise<ReadonlyArray<Account>> => {
         const { accounts } = await task.run();
-        return accounts;
+        return accounts.map(transformAccountResponse);
       },
       abort: () => task.abort(),
     };
@@ -281,7 +290,7 @@ export class StarnameClient {
       },
       run: async (): Promise<ReadonlyArray<Account>> => {
         const { accounts } = await task.run();
-        return accounts;
+        return accounts.map(transformAccountResponse);
       },
     };
   };
@@ -301,7 +310,7 @@ export class StarnameClient {
     return {
       run: async (): Promise<ReadonlyArray<Account>> => {
         const { accounts } = await task.run();
-        return accounts;
+        return accounts.map(transformAccountResponse);
       },
       abort: (): void => task.abort(),
     };
@@ -321,20 +330,21 @@ export class StarnameClient {
     };
   }
 
-  public getValidators(): Task<ReadonlyArray<StargateValidator>> {
+  public getValidators(
+    bondStatus?: BondStatus,
+  ): Task<ReadonlyArray<StargateValidator>> {
     const task: Task<StargateValidatorsResponse> =
-      Get<StargateValidatorsResponse>(this.api.stakingValidators);
+      Get<StargateValidatorsResponse>(
+        `${this.api.stakingValidators}` +
+          (bondStatus !== undefined ? `?status=${BondStatus[bondStatus]}` : ""),
+      );
     return {
       abort: (): void => {
         task.abort();
       },
       run: async (): Promise<ReadonlyArray<StargateValidator>> => {
         const { validators } = await task.run();
-        const resultValidators = [...validators];
-        // Increasing order acc to tokens
-        return resultValidators.sort((a, b) =>
-          Number(a.tokens) < Number(b.tokens) ? 1 : -1,
-        );
+        return validators;
       },
     };
   }
@@ -374,20 +384,89 @@ export class StarnameClient {
     };
   }
 
-  public getTotalRewards(address: string): Task<ReadonlyArray<Coin>> {
-    const task = Get<StargateRewardsResponse>(
-      this.api.userTotalRewards(address),
-    );
+  public getUserRewards(address: string): Task<ReadonlyArray<Reward>> {
+    const task = Get<StargateRewardsResponse>(this.api.userRewards(address));
 
     return {
       abort: (): void => {
         task.abort();
       },
-      run: async (): Promise<ReadonlyArray<Coin>> => {
-        const { total } = await task.run();
-        return total;
+      run: async (): Promise<ReadonlyArray<Reward>> => {
+        const { rewards } = await task.run();
+        return rewards;
       },
     };
+  }
+
+  public getEscrowWithId(escrowId: string): Task<Escrow> {
+    const task = Get<GenericApiResponse<{ escrow: Escrow }>>(
+      this.api.escrowWithId(escrowId),
+    );
+    return {
+      run: async (): Promise<Escrow> => {
+        const { result } = await task.run();
+        return result.escrow;
+      },
+      abort: (): void => task.abort(),
+    };
+  }
+
+  public getEscrows(
+    seller?: string,
+    state?: "open" | "expired",
+    starname?: string,
+    pageStart?: number,
+    pageLength?: number,
+  ): Task<ReadonlyArray<Escrow>> {
+    const params = new URLSearchParams();
+    if (seller) params.set("seller", seller);
+    if (state) params.set("state", state);
+    if (starname)
+      params.set(
+        "object",
+        Buffer.from(
+          starname.indexOf("*") === 0
+            ? starname.slice(1)
+            : starname.split("*").reverse().join("*"),
+        ).toString("hex"),
+      );
+    if (pageStart) params.set("pagination_start", pageStart.toString());
+    if (pageLength) params.set("pagination_length", pageLength.toString());
+    const stringedSearchParams = params.toString();
+    const task = Get<
+      GenericApiResponse<{ escrows: ReadonlyArray<ApiEscrow> | null }>
+    >(
+      this.api.escrows(
+        ...(stringedSearchParams ? [`?${stringedSearchParams}`] : []),
+      ),
+    );
+    return {
+      run: async (): Promise<ReadonlyArray<Escrow>> => {
+        const { result } = await task.run();
+        // api only return escrows with state expired
+        // and only cares for open or expired
+        return result.escrows
+          ? result.escrows.map((_es) => {
+              return {
+                ..._es,
+                state:
+                  _es.state === undefined
+                    ? EscrowState.ESCROW_STATE_OPEN
+                    : _es.state,
+              };
+            })
+          : [];
+      },
+      abort: (): void => task.abort(),
+    };
+  }
+
+  public escrowObjectToStarname(object: EscrowObject): string {
+    if (isEscrowDomainObject(object)) {
+      return `*${object.value.name}`;
+    } else {
+      return `${object.name}*${object.domain}`;
+    }
   }
 
   private static convertMessageType(msg: any): EncodeObject {
@@ -414,7 +493,7 @@ export class StarnameClient {
     const tasksMap: Record<
       string,
       Task<ResponsePage<Transaction>>
-    > = queries.reduce(
+    > = defaultTxQueries.reduce(
       (
         map: Record<string, Task<ResponsePage<Transaction>>>,
         createQuery: (address: string) => StargateTxQuery,
@@ -535,7 +614,7 @@ export class StarnameClient {
   }
 
   public toInternalTransaction(
-    starnameClient: StarnameClient,
+    client: StarnameClient,
     address: string,
   ): (baseTx: StargateBaseTx<EncodeObject>) => Promise<Transaction> {
     return async (
@@ -549,37 +628,45 @@ export class StarnameClient {
       const message = messages[0];
       switch (message.typeUrl) {
         case TxType.Bank.Send:
-          return StargateTransaction.fromSendBaseTx(
-            starnameClient,
-            baseTx,
-            address,
-          );
+          return StargateTransaction.fromSendBaseTx(client, baseTx, address);
+        case TxType.Escrow.CreateEscrow:
+          return StargateTransaction.fromCreateEscrowBaseTx(client, baseTx);
+        case TxType.Escrow.RefundEscrow:
+          return StargateTransaction.fromRefundEscrowBaseTx(client, baseTx);
+        case TxType.Escrow.TransferToEscrow:
+          return StargateTransaction.fromTransferToEscrowBaseTx(client, baseTx);
+        case TxType.Escrow.UpdateEscrow:
+          return StargateTransaction.fromUpdateEscrowBaseTx(client, baseTx);
         case TxType.Starname.RegisterAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.TransferAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.DeleteAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.RenewAccount:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.RenewDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.ReplaceAccountMetadata:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.ReplaceAccountResources:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.RegisterDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.TransferDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Starname.DeleteDomain:
-          return StargateTransaction.fromStarnameBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
+        case TxType.Starname.AddAccountCertificate:
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
+        case TxType.Starname.DeleteAccountCertificate:
+          return StargateTransaction.fromStarnameBaseTx(client, baseTx);
         case TxType.Staking.Delegate:
-          return StargateTransaction.fromStakingBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStakingBaseTx(client, baseTx);
         case TxType.Staking.Undelegate:
-          return StargateTransaction.fromStakingBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromStakingBaseTx(client, baseTx);
         case TxType.Staking.BeginRedelegate:
-          return StargateTransaction.fromStakingBaseTx(starnameClient, baseTx);
+          return StargateTransaction.fromRedelegateBaseTx(client, baseTx);
 
         default:
           throw new Error("unknown transaction type: " + message.typeUrl);
@@ -630,11 +717,11 @@ export class StarnameClient {
    * On failure, if the accounts was not found a `FetchError` is thrown
    * with code `3`.
    */
-  public getStarname(starname: string): Task<Starname> {
+  public getStarnameInfo(starname: string): Task<StarnameInfo> {
     const accountTask: Task<Account> = this.resolveStarname(starname);
     let domainTask: Task<Domain> | null = null;
     return {
-      run: async (): Promise<Starname> => {
+      run: async (): Promise<StarnameInfo> => {
         const account: Account = await accountTask.run();
         domainTask = this.getDomainInfo(account.domain);
         // Make it a full NameItem
@@ -661,23 +748,10 @@ export class StarnameClient {
     return this.broker;
   }
 
-  /**
-   * @deprecated('The asset directory should be used')
-   */
   public getAssets = (): ReadonlyArray<Asset> => {
     return Object.values(this.assets);
   };
 
-  /**
-   * @deprecated('The asset directory should be used')
-   */
-  public getChains = (): ReadonlyArray<Asset> => {
-    return Object.values(this.assets);
-  };
-
-  /**
-   * @deprecated('This should be a configuration value')
-   */
   public getToken = (subunitName: string): TokenLike | undefined => {
     return this.tokens[subunitName];
   };
@@ -698,15 +772,7 @@ export class StarnameClient {
   };
 
   public getAssetByTicker = (ticker: string): Asset | undefined => {
-    const chains: Asset[] = Object.values(this.assets);
-    return chains.find(
-      ({ symbol }: Asset): boolean =>
-        symbol.toLowerCase() === ticker.toLocaleLowerCase(),
-    );
-  };
-
-  public getChainById = (id: string): Asset | undefined => {
-    return this.assets[id];
+    return this.assets[ticker];
   };
 
   public getMainToken(): TokenLike {

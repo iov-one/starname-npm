@@ -56,4 +56,8 @@ export class ViewOnlySigner implements Signer {
   public getOfflineSigner(): OfflineSigner {
     throw new Error("This is a view only mode, you cannot sign transactions");
   }
+
+  public disconnect(): void {
+    return;
+  }
 }

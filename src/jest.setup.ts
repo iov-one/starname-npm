@@ -1,21 +1,24 @@
 import "isomorphic-fetch";
+const { TextEncoder, TextDecoder } = require('util');
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
 
 import { SeedPhraseSigner } from "./signers/seedPhrase";
 import { StarnameClient } from "./starnameClient";
 import { Wallet } from "./wallet";
 
-export const rpcUrl = "http://localhost:26657";
-export const apiUrl = "http://localhost:1317";
+export const rpcUrl = "http://127.0.0.1:26657";
+export const apiUrl = "http://127.0.0.1:1317";
 
-export const setupTest = (): Promise<StarnameClient> => {
+export const createClient = (): Promise<StarnameClient> => {
   return StarnameClient.createConnected(
     rpcUrl,
     apiUrl,
     "" /* validatorsInfoUrl */,
     {
       IOV: {
-        subunitName: "uiov",
-        subunitsPerUnit: 1000000000,
+        subunitName: "tiov",
+        subunitsPerUnit: 1000000,
         ticker: "IOV",
       },
     } /* tokens */,
@@ -25,6 +28,7 @@ export const setupTest = (): Promise<StarnameClient> => {
       name: "IOV",
       symbol: "IOV",
       "trustwallet-uid": null,
+      coingeckoId: null,
     } /* mainAsset */,
     /* broker */
   );
@@ -47,25 +51,9 @@ export const createWallet = async (
   starnameClient: StarnameClient,
 ): Promise<Wallet> => {
   const signer = new SeedPhraseSigner();
-  await signer.random();
-  const wallet = new Wallet(signer, {
-    starnameClient: starnameClient,
-    gasConfig: {
-      gasMap: {
-        "/starnamed.x.starname.v1beta1.MsgRenewDomain": 250000,
-        "/starnamed.x.starname.v1beta1.MsgReplaceAccountResources": 10000,
-        "/starnamed.x.starname.v1beta1.MsgTransferDomain": 250000,
-        "cosmos-sdk/MsgSend": 80000,
-        "cosmos-sdk/MsgBeginRedelegate": 250000,
-        default: 200000,
-      },
-      gasPrice: {
-        denom: "uiov",
-        amount: "2",
-      },
-    },
-  });
-  await addTokensWithFaucet(await wallet.getAddress());
+  await signer.initializeRandom();
+  const wallet = new Wallet(signer, starnameClient);
+  // await addTokensWithFaucet(await wallet.getAddress());
   return wallet;
 };
 

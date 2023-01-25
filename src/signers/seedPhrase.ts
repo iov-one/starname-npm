@@ -18,6 +18,7 @@ import { AddressGroup } from "../types/addressGroup";
 import { ChainMap } from "../types/chainMap";
 import { MismatchedAddressError, Signer } from "./signer";
 import { SignerType } from "./signerType";
+import { Buffer } from "buffer/";
 
 export class SeedPhraseSigner implements Signer {
   readonly type = SignerType.SeedPhrase;
@@ -68,7 +69,7 @@ export class SeedPhraseSigner implements Signer {
     return Buffer.from(pubKey).toString("base64");
   }
 
-  public async random(): Promise<void> {
+  public async initializeRandom(): Promise<void> {
     this.directSigner = await DirectSecp256k1HdWallet.generate(12, {
       hdPaths: [hdPath],
       prefix: "star",
@@ -143,5 +144,9 @@ export class SeedPhraseSigner implements Signer {
 
   public getOfflineSigner(): OfflineSigner {
     return this;
+  }
+
+  public disconnect(): void {
+    return;
   }
 }

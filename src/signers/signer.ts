@@ -10,6 +10,8 @@ export interface Signer {
 
   initialize(...args: any[]): Promise<boolean>;
 
+  disconnect(): void;
+
   getAddress(): Promise<string>;
 
   getAddressGroup(chains: ChainMap): Promise<AddressGroup>;

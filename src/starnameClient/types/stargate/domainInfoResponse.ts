@@ -1,5 +1,5 @@
-import { Domain } from "../../../proto/types";
+import { ApiDomain } from "../../../types/domain";
 
 export interface StargateDomainInfoResponse {
-  domain: Domain;
+  domain: ApiDomain;
 }

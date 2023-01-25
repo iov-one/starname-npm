@@ -1,9 +1,37 @@
+export { KeplrConfig } from "./signers/keplr";
+export { Signer } from "./signers/signer";
+export { ResponsePage } from "./types/apiPage";
+export { AssetResource } from "./types/assetResource";
+export { Balance } from "./types/balance";
+export { ChainLookup, ChainMap, ChainData } from "./types/chainMap";
+export { Validator } from "./types/delegationValidator";
+export { Fees } from "./types/fees";
+export { Settings } from "./types/settings";
+export { SocialHandle } from "./types/socialHandle";
+export { Starname, isAccount, isDomain } from "./types/starname";
+export { StarnameInfo } from "./types/starnameInfo";
+export {
+  Transaction,
+  DelegationData,
+  RedelegationData,
+  isDelegationData,
+  isRedelegationData,
+  isStarnameData,
+} from "./types/transaction";
+export { Unbonding } from "./types/unbondingsResponse";
+export { Delegation } from "./types/userDelegationsResponse";
+export { GasConfig, GasMap } from "./utils/estimateFee";
+export { Wallet, WalletOptions } from "./wallet";
+export { Domain, DomainType } from "./types/domain";
+export { Resource } from "./types/resource";
 export { StarnameClient } from "./starnameClient";
 export { SignerType } from "./signers/signerType";
-export { Wallet } from "./wallet";
 export { GDriveCustodian } from "./gdrive/custodian";
-export { Task, TaskAbortedError } from "./starnameClient/task";
+export { Task, TaskAbortedError, TaskError } from "./starnameClient/task";
+export { FetchError } from "./starnameClient/http";
 export { StarnameRegistry } from "./starnameRegistry";
+
+export * from "./types/escrow";
 // Signers
 export { LedgerSigner } from "./signers/ledger";
 export { GoogleSigner } from "./signers/google";
@@ -13,52 +41,35 @@ export { SeedPhraseSigner } from "./signers/seedPhrase";
 export { ViewOnlySigner } from "./signers/viewOnly";
 export { sortTransactions } from "./logic/sortTransactions";
 
-export { Account, Domain, Resource } from "./proto/types";
-export { Amount, isAmount } from "./types/amount";
+export { Amount, isAmount, toInternalCoins } from "./types/amount";
 export { SocialHandleType, isSocialHandleType } from "./types/socialHandleType";
 export {
+  PostTxResult,
   isFee,
   isTransactionSuccess,
   isTransactionFailure,
 } from "./types/postTxResult";
 export { estimateFee } from "./utils/estimateFee";
-export { TxType } from "./starnameRegistry";
 export {
-  isDelegationData,
-  isRedelegationData,
-  isStarnameData,
-  Transaction,
-} from "./types/transaction";
-export { getIOVAddressForStarname } from "./utils/addressResolver";
+  getIOVAddressForStarname,
+  NoIOVAddressLinkedToStarnameError,
+} from "./utils/addressResolver";
+export { constructTransferrableObject } from "./utils/constructTransferrableObject";
+export { createResourcesFromAddressGroup } from "./utils/createResourcesFromAddressGroup";
+export { defaultGasConfig } from "./utils/defaultGasConfig";
+export { getEscrow, getValidator, reverseLookup } from "./utils/getTransaction";
+export { transformValidUntil } from "./utils/transformValidUntil";
+export { isKeyOf } from "./utils/isKeyOf";
+export { toStargateTxsQuery } from "./utils/toStargateTxsQuery";
 
+export { TxType } from "./starnameRegistry";
 export { Pager } from "./types/pager";
 export {
   getPreferredAsset,
   getTargetsFromResources,
 } from "./types/assetResource";
 
-export type ResponsePage<T> = import("./types/apiPage").ResponsePage<T>;
-export type Signer = import("./signers/signer").Signer;
-export type PostTxResult = import("./types/postTxResult").PostTxResult;
-export type Validator = import("./types/delegationValidator").Validator;
-export type Delegation = import("./types/userDelegationsResponse").Delegation;
-export type Unbonding = import("./types/unbondingsResponse").Unbonding;
-export type Balance = import("./types/balance").Balance;
-export type AssetResource = import("./types/assetResource").AssetResource;
-export type Fees = import("./types/fees").Fees;
-export type Settings = import("./types/settings").Settings;
-export type Starname = import("./types/resolveResponse").Starname;
-export type SocialHandle = import("./types/socialHandle").SocialHandle;
-export type GasConfig = import("./utils/estimateFee").GasConfig;
-export type ChainMap = import("./types/chainMap").ChainMap;
-export type ChainLookup = import("./types/chainMap").ChainLookup;
-
-export type RedelegationData = import("./types/transaction").RedelegationData;
-export type DelegationData = import("./types/transaction").DelegationData;
-export type TaskError = import("./starnameClient/task").TaskError;
-export type GasMap = import("./utils/estimateFee").GasMap;
-export type WalletOptions = import("./wallet").WalletOptions;
-export type KeplrConfig = import("./signers/keplr").KeplrConfig;
+export { Account } from "./types/account";
 export {
   MsgRegisterAccount,
   MsgSignText,
@@ -73,4 +84,15 @@ export {
   MsgDeleteAccount,
   MsgAddAccountCertificate,
   MsgRegisterDomain,
-} from "./proto/tx";
+} from "./proto/iov/starname/v1beta1/tx";
+export {
+  Domain as DomainProto,
+  Account as AccountProto,
+  Resource as ResourceProto,
+} from "./proto/iov/starname/v1beta1/types";
+export {
+  MsgCreateEscrow,
+  MsgUpdateEscrow,
+  MsgRefundEscrow,
+  MsgTransferToEscrow,
+} from "./proto/iov/escrow/v1beta1/tx";

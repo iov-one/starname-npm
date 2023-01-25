@@ -1,17 +1,17 @@
+import { AminoMsg } from "@cosmjs/amino";
 import {
-  isMsgBeginRedelegate,
-  isMsgDelegate,
-  isMsgUndelegate,
-  Msg,
-} from "@cosmjs/launchpad";
-import { Log } from "@cosmjs/launchpad/build/logs";
+  isAminoMsgBeginRedelegate,
+  isAminoMsgDelegate,
+  isAminoMsgUndelegate,
+} from "@cosmjs/stargate";
+import { Log } from "@cosmjs/stargate/build/logs";
 
 import { StarnameClient } from "../starnameClient";
 import { AminoType } from "../types/aminoTypes";
 import { Amount } from "../types/amount";
 import { Validator } from "../types/delegationValidator";
 import { getValidator, reverseLookup } from "../utils/getTransaction";
-import { Starname as StarnameData } from "./resolveResponse";
+import { StarnameInfo as StarnameData } from "./starnameInfo";
 
 export interface BaseTx {
   height: number;
@@ -20,7 +20,7 @@ export interface BaseTx {
   logs: ReadonlyArray<Log>;
   raw_log: string;
   timestamp: string;
-  tx: Msg;
+  tx: AminoMsg;
   txhash: string;
 }
 
@@ -35,11 +35,16 @@ export interface Transaction {
   readonly id: string;
   readonly type: any;
   readonly amount: ReadonlyArray<Amount>;
-  readonly sender: string;
   readonly data: StarnameData | RedelegationData | DelegationData | string;
   readonly fee: ReadonlyArray<Amount>;
   readonly time: Date;
   readonly note?: string;
+  readonly escrowId?: string;
+  readonly sender?: string;
+  readonly seller?: string;
+  readonly buyer?: string;
+  readonly updater?: string;
+  readonly deadline?: Date;
 }
 
 export class Transaction {
@@ -54,7 +59,7 @@ export class Transaction {
       msg: [message],
     } = stdTx;
     const { value } = message;
-    if (!isMsgBeginRedelegate(message)) {
+    if (!isAminoMsgBeginRedelegate(message)) {
       throw new Error("cannot parse transaction");
     }
     return {
@@ -83,7 +88,7 @@ export class Transaction {
       msg: [message],
     } = stdTx;
     const { value } = message;
-    if (!isMsgDelegate(message) && !isMsgUndelegate(message)) {
+    if (!isAminoMsgDelegate(message) && !isAminoMsgUndelegate(message)) {
       throw new Error("cannot parse transaction");
     }
     return {

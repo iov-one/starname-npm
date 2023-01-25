@@ -1,5 +1,6 @@
-import { Coin as CosmjsCoin } from "@cosmjs/launchpad";
+import { Coin } from "@cosmjs/amino";
 
+import { StarnameClient } from "../starnameClient";
 import { TokenLike } from "./tokenLike";
 
 export interface CoinLike {
@@ -15,6 +16,15 @@ export class Amount implements CoinLike {
   constructor(amount: number, token: TokenLike) {
     this.amount = amount;
     this.token = token;
+  }
+
+  public static from(client: StarnameClient, uTokens: number): Amount {
+    return new Amount(uTokens, client.getMainToken());
+  }
+
+  public static fromValue(client: StarnameClient, value: number): Amount {
+    const token = client.getMainToken();
+    return new Amount(value * token.subunitsPerUnit, token);
   }
 
   public format(): string {
@@ -35,15 +45,28 @@ export class Amount implements CoinLike {
     const { token } = this;
     return this.amount / token.subunitsPerUnit;
   }
+
+  public getDenom(): string {
+    const { token } = this;
+    return token.ticker;
+  }
+
+  public toCoins(): ReadonlyArray<Coin> {
+    return [
+      {
+        amount: Math.round(this.amount).toString(),
+        denom: this.token.subunitName,
+      },
+    ];
+  }
 }
 
 export const toInternalCoins = (
-  coins: ReadonlyArray<CosmjsCoin>,
+  coins: ReadonlyArray<Coin>,
   tokens: Record<string, TokenLike>,
 ): ReadonlyArray<Amount> => {
   return coins.map(
-    (item: CosmjsCoin): Amount =>
-      new Amount(Number(item.amount), tokens[item.denom]),
+    (item: Coin): Amount => new Amount(Number(item.amount), tokens[item.denom]),
   );
 };
 
