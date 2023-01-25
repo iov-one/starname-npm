@@ -259,7 +259,7 @@ export class StargateTransaction {
     const msg = messages[0];
     const { value } = msg;
     return {
-      amount: [Amount.fromValue(client, 0)],
+      amount: [Amount.fromValue(0, client.getMainToken())],
       fee: client.toInternalCoins(fee.amount),
       data: value.id,
       sender: await reverseLookup(client, value.sender),

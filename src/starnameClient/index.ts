@@ -8,7 +8,6 @@ import { TxType } from "../starnameRegistry";
 import { Account, transformAccountResponse } from "../types/account";
 import { Amount, toInternalCoins } from "../types/amount";
 import { ResponsePage } from "../types/apiPage";
-import { Balance } from "../types/balance";
 import { ValidatorLogoResponse } from "../types/delegationValidator";
 import { Domain, transformDomainResponmse } from "../types/domain";
 import {
@@ -84,7 +83,7 @@ export class StarnameClient {
     rpcUrl: string,
     apiUrl: string,
     validatorsInfoUrl: string,
-    chainTokens: Record<string, TokenLike>,
+    chainTokens: ReadonlyArray<TokenLike>,
     mainAsset: Asset,
     broker?: string,
     assets?: ReadonlyArray<Asset>,
@@ -96,7 +95,12 @@ export class StarnameClient {
       validatorsInfoUrl,
     );
     // FIXME: use the asset directory here right?
-    starnameClient.tokens = chainTokens;
+    starnameClient.tokens = chainTokens.reduce((prev, curr) => {
+      return {
+        ...prev,
+        [curr.ticker]: curr,
+      };
+    }, {});
     starnameClient.settings = await starnameClient.loadSettings();
     starnameClient.fees = await starnameClient.loadFees();
     starnameClient.mainAsset = mainAsset;
@@ -167,25 +171,19 @@ export class StarnameClient {
     };
   };
 
-  public getBalance(address: string): Task<ReadonlyArray<Balance>> {
+  public getBalance(address: string): Task<ReadonlyArray<Amount>> {
     const task = Get<StargateBalanceResponse>(this.api.balances(address));
 
     return {
-      run: async (): Promise<ReadonlyArray<Balance>> => {
+      run: async (): Promise<ReadonlyArray<Amount>> => {
         const { balances }: StargateBalanceResponse = await task.run();
-        const result = Array<Balance>();
-        if (balances.length > 0) {
-          balances.forEach((balance) => {
-            const token = this.getToken(balance.denom);
-            if (!token) return;
-            const amount = new Amount(Number(balance.amount), token);
-            result.push({ address, amount });
-          });
-        } else {
-          const token = this.getMainToken();
-          const amount = new Amount(0, token);
-          result.push({ address, amount });
-        }
+        const result = Array<Amount>();
+        balances.forEach((balance) => {
+          const token = this.getToken(balance.denom);
+          if (!token) return;
+          const amount = new Amount(Number(balance.amount), token);
+          result.push(amount);
+        });
         return result;
       },
       abort: (): void => {
@@ -752,8 +750,15 @@ export class StarnameClient {
     return Object.values(this.assets);
   };
 
+  public getTokenBySymbol = (symbol: string): TokenLike | undefined => {
+    return this.tokens[symbol];
+  };
+
   public getToken = (subunitName: string): TokenLike | undefined => {
-    return this.tokens[subunitName];
+    const tokens = Object.values(this.tokens);
+    return tokens.find(
+      (_t) => _t.subunitName.toUpperCase() === subunitName.toUpperCase(),
+    );
   };
 
   public getFees = (): Fees => {

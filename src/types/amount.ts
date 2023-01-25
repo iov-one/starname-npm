@@ -1,6 +1,6 @@
 import { Coin } from "@cosmjs/amino";
+import abbreviate from "../utils/abbreviateNumber";
 
-import { StarnameClient } from "../starnameClient";
 import { TokenLike } from "./tokenLike";
 
 export interface CoinLike {
@@ -18,24 +18,21 @@ export class Amount implements CoinLike {
     this.token = token;
   }
 
-  public static from(client: StarnameClient, uTokens: number): Amount {
-    return new Amount(uTokens, client.getMainToken());
-  }
-
-  public static fromValue(client: StarnameClient, value: number): Amount {
-    const token = client.getMainToken();
+  public static fromValue(value: number, token: TokenLike): Amount {
     return new Amount(value * token.subunitsPerUnit, token);
   }
 
-  public format(): string {
+  public format(abbrv = false): string {
     const { token } = this;
     const value: number = this.amount / token.subunitsPerUnit;
     const fractionDigits: number = Math.log10(token.subunitsPerUnit);
     return (
-      value.toLocaleString(undefined, {
-        maximumFractionDigits: fractionDigits,
-        minimumFractionDigits: 2,
-      }) +
+      (abbrv
+        ? abbreviate(value, 2, 0)
+        : value.toLocaleString(undefined, {
+            maximumFractionDigits: fractionDigits,
+            minimumFractionDigits: 2,
+          })) +
       " " +
       token.ticker
     );
@@ -46,9 +43,12 @@ export class Amount implements CoinLike {
     return this.amount / token.subunitsPerUnit;
   }
 
-  public getDenom(): string {
-    const { token } = this;
-    return token.ticker;
+  public get symbol(): string {
+    return this.token.ticker;
+  }
+
+  public get denom(): string {
+    return this.token.subunitName;
   }
 
   public toCoins(): ReadonlyArray<Coin> {

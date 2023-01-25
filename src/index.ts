@@ -2,7 +2,6 @@ export { KeplrConfig } from "./signers/keplr";
 export { Signer } from "./signers/signer";
 export { ResponsePage } from "./types/apiPage";
 export { AssetResource } from "./types/assetResource";
-export { Balance } from "./types/balance";
 export { ChainLookup, ChainMap, ChainData } from "./types/chainMap";
 export { Validator } from "./types/delegationValidator";
 export { Fees } from "./types/fees";

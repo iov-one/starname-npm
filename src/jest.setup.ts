@@ -1,5 +1,5 @@
 import "isomorphic-fetch";
-const { TextEncoder, TextDecoder } = require('util');
+const { TextEncoder, TextDecoder } = require("util");
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
@@ -15,14 +15,16 @@ export const createClient = (): Promise<StarnameClient> => {
     rpcUrl,
     apiUrl,
     "" /* validatorsInfoUrl */,
-    {
-      IOV: {
+    [
+      /* Chain Tokens */
+      {
         subunitName: "tiov",
         subunitsPerUnit: 1000000,
         ticker: "IOV",
       },
-    } /* tokens */,
+    ],
     {
+      /* Main asset */
       logo: "",
       "starname-uri": "",
       name: "IOV",

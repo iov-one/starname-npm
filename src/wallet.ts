@@ -54,7 +54,6 @@ import { customStarnameAminoTypes } from "./types/aminoTypes";
 import { Amount } from "./types/amount";
 import { ResponsePage } from "./types/apiPage";
 import { AssetResource } from "./types/assetResource";
-import { Balance } from "./types/balance";
 import { ChainMap } from "./types/chainMap";
 import { FeeEstimator } from "./types/feeEstimator";
 import { MsgsAndMemo } from "./types/msgsAndMemo";
@@ -166,10 +165,10 @@ export class Wallet {
     return this.signer.disconnect();
   }
 
-  public getBalances(): Task<ReadonlyArray<Balance>> {
-    let task: Task<ReadonlyArray<Balance>> | null = null;
+  public getBalances(): Task<ReadonlyArray<Amount>> {
+    let task: Task<ReadonlyArray<Amount>> | null = null;
     return {
-      run: async (): Promise<ReadonlyArray<Balance>> => {
+      run: async (): Promise<ReadonlyArray<Amount>> => {
         const { starnameClient } = this;
         const signer: Signer = this.getSigner();
         task = starnameClient.getBalance(await signer.getAddress());
