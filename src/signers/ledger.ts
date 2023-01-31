@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
 import {
   AminoSignResponse,
   encodeSecp256k1Signature,

@@ -1,10 +1,11 @@
-export { KeplrConfig } from "./signers/keplr";
+export { ChainInfo } from "@keplr-wallet/types";
 export { Signer } from "./signers/signer";
 export { ResponsePage } from "./types/apiPage";
 export { AssetResource } from "./types/assetResource";
 export { ChainLookup, ChainMap, ChainData } from "./types/chainMap";
 export { Validator } from "./types/delegationValidator";
 export { Fees } from "./types/fees";
+export { TokenLike } from "./types/tokenLike";
 export { Settings } from "./types/settings";
 export { SocialHandle } from "./types/socialHandle";
 export { Starname, isAccount, isDomain } from "./types/starname";

@@ -116,6 +116,7 @@ export class Wallet {
     msgsAndMemo: MsgsAndMemo,
   ): Promise<TxRaw> {
     const { messages, memo } = msgsAndMemo;
+    const { starnameClient } = this;
     const address = await this.getAddress();
     const fee = this.feeEstimator(messages);
     const registry = new StarnameRegistry();
@@ -139,7 +140,16 @@ export class Wallet {
       }),
     });
 
-    return client.sign(address, messages, fee, memo);
+    const account = await starnameClient.getAccount(address);
+    if (!account) {
+      throw new Error(`could not find account for ${address}`);
+    }
+
+    return client.sign(address, messages, fee, memo, {
+      accountNumber: account.accountNumber,
+      sequence: account.sequence,
+      chainId: starnameClient.getChainId(),
+    });
   }
 
   public async signMsgsAndMemo(msgsAndMemo: MsgsAndMemo): Promise<TxRaw> {

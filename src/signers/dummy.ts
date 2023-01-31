@@ -1,10 +1,9 @@
-import { AminoSignResponse, StdSignDoc } from "@cosmjs/amino";
+import { AminoSignResponse } from "@cosmjs/amino";
 import {
   AccountData,
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
-import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { AddressGroup } from "../types/addressGroup";
 import { Signer } from "./signer";
@@ -33,17 +32,11 @@ export class DummySigner implements Signer {
     return Promise.resolve([]);
   }
 
-  public signDirect(
-    signerAddress: string,
-    signDoc: SignDoc,
-  ): Promise<DirectSignResponse> {
+  public signDirect(): Promise<DirectSignResponse> {
     return Promise.resolve({} as DirectSignResponse);
   }
 
-  public signAlephMessage(
-    address: string,
-    signable: StdSignDoc,
-  ): Promise<AminoSignResponse> {
+  public signAlephMessage(): Promise<AminoSignResponse> {
     return Promise.resolve({} as AminoSignResponse);
   }
 

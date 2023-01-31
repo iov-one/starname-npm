@@ -1,10 +1,9 @@
-import { AminoSignResponse, StdSignDoc } from "@cosmjs/amino";
+import { AminoSignResponse } from "@cosmjs/amino";
 import {
   AccountData,
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
-import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { AddressGroup } from "../types/addressGroup";
 import { Signer } from "./signer";
@@ -39,17 +38,11 @@ export class ViewOnlySigner implements Signer {
     return Promise.resolve([]);
   }
 
-  public signDirect(
-    address: string,
-    signDoc: SignDoc,
-  ): Promise<DirectSignResponse> {
+  public signDirect(): Promise<DirectSignResponse> {
     throw new Error("This is a view only mode, you cannot sign transactions");
   }
 
-  public signAlephMessage(
-    address: string,
-    signable: StdSignDoc,
-  ): Promise<AminoSignResponse> {
+  public signAlephMessage(): Promise<AminoSignResponse> {
     throw new Error("This is a view only mode, you cannot sign transactions");
   }
 

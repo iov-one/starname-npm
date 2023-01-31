@@ -1,7 +1,4 @@
 import "isomorphic-fetch";
-const { TextEncoder, TextDecoder } = require("util");
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
 
 import { SeedPhraseSigner } from "./signers/seedPhrase";
 import { StarnameClient } from "./starnameClient";

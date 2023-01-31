@@ -6,53 +6,19 @@ import {
 } from "@cosmjs/amino";
 import { fromBase64 } from "@cosmjs/encoding";
 import { AccountData, Algo, OfflineSigner } from "@cosmjs/proto-signing";
-import { Bech32Config, Keplr, Key } from "@keplr-wallet/types";
+import { ChainInfo, Keplr, Key } from "@keplr-wallet/types";
 
 import { AddressGroup } from "../types/addressGroup";
 import { ChainMap } from "../types/chainMap";
 import { MismatchedAddressError, Signer } from "./signer";
 import { SignerType } from "./signerType";
 
-interface GasPriceStep {
-  readonly low: number;
-  readonly average: number;
-  readonly high: number;
-}
-
-export interface KeplrConfig {
-  readonly symbol: string;
-  readonly denom: string;
-  readonly rpcUrl: string;
-  readonly apiUrl: string;
-  readonly coinType: number;
-  readonly gasPriceStep: GasPriceStep;
-}
-
 declare global {
   interface Window {
     readonly keplr: Keplr;
-    readonly getOfflineSigner: (chainId: string) => any;
+    readonly getOfflineSigner: (chainId: string) => OfflineSigner;
   }
 }
-
-const defaultBech32Config = (
-  mainPrefix: string,
-  validatorPrefix: string = "val",
-  consensusPrefix: string = "cons",
-  publicPrefix: string = "pub",
-  operatorPrefix: string = "oper",
-): Bech32Config => {
-  return {
-    bech32PrefixAccAddr: mainPrefix,
-    bech32PrefixAccPub: mainPrefix + publicPrefix,
-    bech32PrefixValAddr: mainPrefix + validatorPrefix + operatorPrefix,
-    bech32PrefixValPub:
-      mainPrefix + validatorPrefix + operatorPrefix + publicPrefix,
-    bech32PrefixConsAddr: mainPrefix + validatorPrefix + consensusPrefix,
-    bech32PrefixConsPub:
-      mainPrefix + validatorPrefix + consensusPrefix + publicPrefix,
-  };
-};
 
 export class KeplrSigner implements Signer {
   public readonly type: SignerType = SignerType.Keplr;
@@ -110,42 +76,11 @@ export class KeplrSigner implements Signer {
     });
   }
 
-  public async initialize(
-    chainId: string,
-    config: KeplrConfig,
-  ): Promise<boolean> {
+  public async initialize(config: ChainInfo): Promise<boolean> {
     const keplr = await KeplrSigner.getKeplr();
+    const { chainId } = config;
     this.chainId = chainId;
-    const coin = {
-      coinDenom: config.symbol,
-      coinMinimalDenom: config.denom,
-      coinDecimals: 6,
-    };
-    const bech32Config = defaultBech32Config("star");
-    await keplr.experimentalSuggestChain({
-      chainId: chainId,
-      chainName: chainId,
-      rpc: config.rpcUrl,
-      rest: config.apiUrl,
-      stakeCurrency: {
-        ...coin,
-        coinDenom: "stake",
-        coinMinimalDenom: "ustake",
-      },
-      bip44: {
-        coinType: config.coinType,
-      },
-      features: KeplrSigner.getFeatures(),
-      bech32Config: bech32Config,
-      currencies: [coin],
-      feeCurrencies: [
-        {
-          ...coin,
-          gasPriceStep: config.gasPriceStep,
-        },
-      ],
-      coinType: config.coinType,
-    });
+    await keplr.experimentalSuggestChain(config);
     // Now that we suggested the chain let's initialize it
     await keplr.enable(chainId);
     // Create the wallet

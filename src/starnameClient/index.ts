@@ -17,7 +17,6 @@ import {
   isEscrowDomainObject,
 } from "../types/escrow";
 import { Fees, transformFeesResponse } from "../types/fees";
-import { Pager } from "../types/pager";
 import { PostTxResult } from "../types/postTxResult";
 import { Reward } from "../types/rewardsResponse";
 import {
@@ -72,8 +71,6 @@ export class StarnameClient {
   private api: ApiConfig = getStargateEndpoints("", "", "");
 
   private chainId = "";
-
-  private constructor() {}
 
   public static createOffline(): StarnameClient {
     return new StarnameClient();
@@ -397,13 +394,21 @@ export class StarnameClient {
   }
 
   public getEscrowWithId(escrowId: string): Task<Escrow> {
-    const task = Get<GenericApiResponse<{ escrow: Escrow }>>(
+    const task = Get<GenericApiResponse<{ escrow: ApiEscrow }>>(
       this.api.escrowWithId(escrowId),
     );
     return {
       run: async (): Promise<Escrow> => {
-        const { result } = await task.run();
-        return result.escrow;
+        const {
+          result: { escrow },
+        } = await task.run();
+        return {
+          ...escrow,
+          state:
+            escrow.state === undefined
+              ? EscrowState.ESCROW_STATE_OPEN
+              : escrow.state,
+        };
       },
       abort: (): void => task.abort(),
     };
@@ -486,7 +491,6 @@ export class StarnameClient {
 
   public getTransactions = (
     address: string,
-    page: Pager,
   ): Task<Record<string, ResponsePage<Transaction>>> => {
     const tasksMap: Record<
       string,
@@ -503,7 +507,6 @@ export class StarnameClient {
             this,
             address,
             concreteQuery.parameters,
-            page,
           ),
         };
       },
@@ -542,8 +545,7 @@ export class StarnameClient {
   private getTransactionsWithQuery(
     starnameClient: StarnameClient,
     address: string,
-    query: Record<string, any>,
-    page: Pager,
+    query: Record<string, unknown>,
   ): Task<ResponsePage<Transaction>> {
     const queryString: string = toStargateTxsQuery({
       ...query,
