@@ -22,7 +22,7 @@ export class Amount implements CoinLike {
     return new Amount(value * token.subunitsPerUnit, token);
   }
 
-  public format(abbrv = false): string {
+  public format(abbrv = false, hideTicker = false): string {
     const { token } = this;
     const value: number = this.amount / token.subunitsPerUnit;
     const fractionDigits: number = Math.log10(token.subunitsPerUnit);
@@ -32,9 +32,7 @@ export class Amount implements CoinLike {
         : value.toLocaleString(undefined, {
             maximumFractionDigits: fractionDigits,
             minimumFractionDigits: 2,
-          })) +
-      " " +
-      token.ticker
+          })) + (hideTicker ? "" : ` ${token.ticker}`)
     );
   }
 
