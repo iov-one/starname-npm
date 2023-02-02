@@ -1,6 +1,10 @@
 import { Coin } from "@cosmjs/amino";
 import { EncodeObject } from "@cosmjs/proto-signing";
-import { Account as CosmosAccount, StargateClient } from "@cosmjs/stargate";
+import {
+  Account as CosmosAccount,
+  DeliverTxResponse,
+  StargateClient,
+} from "@cosmjs/stargate";
 
 import { sortTransactions } from "../logic/sortTransactions";
 import { EscrowState } from "../proto/iov/escrow/v1beta1/types";
@@ -17,7 +21,6 @@ import {
   isEscrowDomainObject,
 } from "../types/escrow";
 import { Fees, transformFeesResponse } from "../types/fees";
-import { PostTxResult } from "../types/postTxResult";
 import { Reward } from "../types/rewardsResponse";
 import {
   Settings,
@@ -480,7 +483,9 @@ export class StarnameClient {
     };
   }
 
-  public broadcastTx = async (signedTx: Uint8Array): Promise<PostTxResult> => {
+  public broadcastTx = async (
+    signedTx: Uint8Array,
+  ): Promise<DeliverTxResponse> => {
     const client: StargateClient | null = this.stargateClient;
     if (client !== null) {
       return client.broadcastTx(signedTx);
@@ -716,25 +721,29 @@ export class StarnameClient {
    *
    * On failure, if the accounts was not found a `FetchError` is thrown
    * with code `3`.
+   * Look for message in error to know which query actually failed
    */
   public getStarnameInfo(starname: string): Task<StarnameInfo> {
-    const accountTask: Task<Account> = this.resolveStarname(starname);
-    let domainTask: Task<Domain> | null = null;
+    if (starname.split("*").length !== 2)
+      throw new Error("Not a valid starname");
+    const domain = starname.split("*")[1];
+    let accountTask: Task<Account> | null = null;
+    const domainTask: Task<Domain> = this.getDomainInfo(domain);
     return {
       run: async (): Promise<StarnameInfo> => {
-        const account: Account = await accountTask.run();
-        domainTask = this.getDomainInfo(account.domain);
-        // Make it a full NameItem
+        // run domain task first as there is no meaning of a account with a real domain
+        const domainInfo = await domainTask.run();
+        accountTask = this.resolveStarname(starname);
         return {
-          ...account,
-          domain: await domainTask.run(),
+          ...(await accountTask.run()),
+          domain: domainInfo,
         };
       },
       abort: (): void => {
-        if (domainTask !== null) {
-          domainTask.abort();
+        domainTask.abort();
+        if (accountTask !== null) {
+          accountTask.abort();
         }
-        accountTask.abort();
       },
     };
   }

@@ -1,7 +1,7 @@
+import { isDeliverTxSuccess } from "@cosmjs/stargate";
 import { createClient, createWallet, randomName } from "../jest.setup";
 import { StarnameClient } from "../starnameClient";
 import { FetchError } from "../starnameClient/http";
-import { isTransactionSuccess } from "../types/postTxResult";
 import { Wallet } from "../wallet";
 
 jest.setTimeout(50000);
@@ -33,7 +33,7 @@ describe("Stargate Api Implementation", (): void => {
     // Register a starname
     const result = await wallet.registerDomain(testName);
 
-    expect(isTransactionSuccess(result)).toBe(true);
+    expect(isDeliverTxSuccess(result)).toBe(true);
   });
 
   it("Can query an existing starname correctly", async (): Promise<void> => {

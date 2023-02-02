@@ -1,4 +1,5 @@
 import { EscrowState } from "../proto/iov/escrow/v1beta1/types";
+import { Resource } from "./resource";
 
 export interface EscrowDomainObject {
   readonly type: "starname/Domain";
@@ -15,6 +16,8 @@ export interface EscrowAccountObject {
   name: string;
   owner: string;
   valid_until: string;
+  resources: ReadonlyArray<Resource>;
+  metadata_uri?: string;
 }
 
 export type EscrowObject = EscrowDomainObject | EscrowAccountObject;
@@ -46,22 +49,13 @@ export interface ModifiableEscrowFields {
 }
 
 export const isEscrowDomainObject = (
-  obj: EscrowDomainObject | any,
+  obj: EscrowObject | any,
 ): obj is EscrowDomainObject => {
   return obj.type !== undefined && obj.type === "starname/Domain";
 };
 
 export const isEscrowAccountObject = (
-  obj: EscrowAccountObject | any,
+  obj: EscrowObject | any,
 ): obj is EscrowAccountObject => {
-  if (
-    "domain" in obj &&
-    "name" in obj &&
-    "owner" in obj &&
-    "valid_until" in obj
-  ) {
-    if (typeof obj.owner === "string" && obj.owner.length > 43) return true;
-    return false;
-  }
-  return false;
+  return !isEscrowDomainObject(obj);
 };

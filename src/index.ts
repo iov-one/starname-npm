@@ -43,12 +43,6 @@ export { sortTransactions } from "./logic/sortTransactions";
 
 export { Amount, isAmount, toInternalCoins } from "./types/amount";
 export { SocialHandleType, isSocialHandleType } from "./types/socialHandleType";
-export {
-  PostTxResult,
-  isFee,
-  isTransactionSuccess,
-  isTransactionFailure,
-} from "./types/postTxResult";
 export { estimateFee } from "./utils/estimateFee";
 export {
   getIOVAddressForStarname,
@@ -61,6 +55,12 @@ export { getEscrow, getValidator, reverseLookup } from "./utils/getTransaction";
 export { transformValidUntil } from "./utils/transformValidUntil";
 export { isKeyOf } from "./utils/isKeyOf";
 export { toStargateTxsQuery } from "./utils/toStargateTxsQuery";
+
+export {
+  DeliverTxResponse,
+  isDeliverTxSuccess,
+  isDeliverTxFailure,
+} from "@cosmjs/stargate";
 
 export { TxType } from "./starnameRegistry";
 export { Pager } from "./types/pager";

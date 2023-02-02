@@ -11,6 +11,7 @@ import {
   createIbcAminoConverters,
   createStakingAminoConverters,
   createVestingAminoConverters,
+  DeliverTxResponse,
 } from "@cosmjs/stargate";
 import { SigningStargateClient } from "@cosmjs/stargate/build/signingstargateclient";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
@@ -57,8 +58,6 @@ import { AssetResource } from "./types/assetResource";
 import { ChainMap } from "./types/chainMap";
 import { FeeEstimator } from "./types/feeEstimator";
 import { MsgsAndMemo } from "./types/msgsAndMemo";
-import { Pager } from "./types/pager";
-import { PostTxResult } from "./types/postTxResult";
 import { Starname } from "./types/starname";
 import { TokenLike } from "./types/tokenLike";
 import { Transaction } from "./types/transaction";
@@ -85,7 +84,7 @@ export class Wallet {
 
   protected async signAndBroadcast(
     msgsAndMemo: MsgsAndMemo,
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const { starnameClient } = this;
     try {
       // signing
@@ -103,9 +102,9 @@ export class Wallet {
           height: 0,
           code: TxRejected,
           rawLog: "",
-          amount: [],
           events: [],
-          gas: "",
+          gasUsed: 0,
+          gasWanted: 0,
         };
       }
     }
@@ -192,15 +191,13 @@ export class Wallet {
     };
   }
 
-  public getTransactions(
-    page: Pager,
-  ): Task<Record<string, ResponsePage<Transaction>>> {
+  public getTransactions(): Task<Record<string, ResponsePage<Transaction>>> {
     let task: Task<Record<string, ResponsePage<Transaction>>> | null = null;
     return {
       run: async (): Promise<Record<string, ResponsePage<Transaction>>> => {
         const { starnameClient } = this;
         const signer: Signer = this.getSigner();
-        task = starnameClient.getTransactions(await signer.getAddress(), page);
+        task = starnameClient.getTransactions(await signer.getAddress());
         return task.run();
       },
       abort: (): void => {
@@ -229,7 +226,7 @@ export class Wallet {
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address = await this.getAddress();
     const message: Tx<MsgReplaceAccountResources> = {
       typeUrl: TxType.Starname.ReplaceAccountResources,
@@ -278,7 +275,7 @@ export class Wallet {
     profile: ReadonlyArray<Resource>,
     preferredAsset: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address = await this.getAddress();
     const message: Tx<MsgReplaceAccountResources> = {
       typeUrl: TxType.Starname.ReplaceAccountResources,
@@ -311,7 +308,7 @@ export class Wallet {
     domain: string,
     certificate: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const owner = await this.getAddress();
     const addAccountCertificateMsg: Tx<MsgAddAccountCertificate> = {
       typeUrl: TxType.Starname.AddAccountCertificate,
@@ -335,14 +332,14 @@ export class Wallet {
    * @param name
    * @param domain
    * @param b64Certificate - A base64 encoded JSON certificate
-   * @returns PostTxResult
+   * @returns DeliverTxResponse
    */
   public async deleteAccountCertificate(
     name: string,
     domain: string,
     b64Certificate: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const owner = await this.getAddress();
     const deleteAccountCertificateMsg: Tx<MsgDeleteAccountCertificate> = {
       typeUrl: TxType.Starname.DeleteAccountCertificate,
@@ -366,7 +363,7 @@ export class Wallet {
     item: Starname,
     deadline: Date,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     if (this.getSignerType() === SignerType.Ledger)
       throw new Error("ledger unsupported");
     const address = await this.getAddress();
@@ -392,7 +389,7 @@ export class Wallet {
     newDeadline: Date,
     newSeller: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     if (this.getSignerType() === SignerType.Ledger)
       throw new Error("ledger unsupported");
     const address = await this.getAddress();
@@ -418,7 +415,7 @@ export class Wallet {
     id: string,
     amount: Amount,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     if (this.getSignerType() === SignerType.Ledger)
       throw new Error("ledger unsupported");
 
@@ -440,7 +437,7 @@ export class Wallet {
     });
   }
 
-  public async deleteEscrow(id: string, memo = ""): Promise<PostTxResult> {
+  public async deleteEscrow(id: string, memo = ""): Promise<DeliverTxResponse> {
     if (this.getSignerType() === SignerType.Ledger)
       throw new Error("ledger unsupported");
     const address = await this.getAddress();
@@ -464,7 +461,7 @@ export class Wallet {
     type: "closed" | "open" = "closed",
     expired = false,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const { starnameClient } = this;
     const address: string = await this.getAddress();
     const message: Tx<MsgRegisterDomain> = {
@@ -522,7 +519,7 @@ export class Wallet {
     chains?: ChainMap,
     expired = false,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const resources: Array<Resource> = [];
     // Set default resource first
@@ -579,7 +576,7 @@ export class Wallet {
     recipient: string,
     transferFlag: 0 | 1 | 2 = 0,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const message: Tx<MsgTransferDomain> = {
       typeUrl: TxType.Starname.TransferDomain,
       value: {
@@ -603,7 +600,7 @@ export class Wallet {
     recipient: string,
     reset = true,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address = await this.getAddress();
     const message: Tx<MsgTransferAccount> = {
       typeUrl: TxType.Starname.TransferAccount,
@@ -623,7 +620,10 @@ export class Wallet {
     });
   }
 
-  public async deleteDomain(domain: string, memo = ""): Promise<PostTxResult> {
+  public async deleteDomain(
+    domain: string,
+    memo = "",
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const message: Tx<MsgDeleteDomain> = {
       typeUrl: TxType.Starname.DeleteDomain,
@@ -644,7 +644,7 @@ export class Wallet {
     name: string,
     domain: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const message: Tx<MsgDeleteAccount> = {
       typeUrl: TxType.Starname.DeleteAccount,
@@ -662,7 +662,10 @@ export class Wallet {
     });
   }
 
-  public async renewDomain(domain: string, memo = ""): Promise<PostTxResult> {
+  public async renewDomain(
+    domain: string,
+    memo = "",
+  ): Promise<DeliverTxResponse> {
     const message: Tx<MsgRenewDomain> = {
       typeUrl: TxType.Starname.RenewDomain,
       value: {
@@ -682,7 +685,7 @@ export class Wallet {
     name: string,
     domain: string,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address = await this.getAddress();
     const message: Tx<MsgRenewAccount> = {
       typeUrl: TxType.Starname.RenewAccount,
@@ -704,7 +707,7 @@ export class Wallet {
     validatorAddress: string,
     amount: Amount,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const message: Tx<MsgDelegate> = {
       typeUrl: TxType.Staking.Delegate,
@@ -725,7 +728,7 @@ export class Wallet {
     validatorAddress: string,
     amount: Amount,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const message: Tx<MsgUndelegate> = {
       typeUrl: TxType.Staking.Undelegate,
@@ -747,7 +750,7 @@ export class Wallet {
     validatorDestination: string,
     amount: Amount,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const message: Tx<MsgBeginRedelegate> = {
       typeUrl: TxType.Staking.BeginRedelegate,
@@ -768,7 +771,7 @@ export class Wallet {
   public async claimReward(
     validatorAddresses: ReadonlyArray<string>,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const composeMessage = (
       validatorAddr: string,
@@ -793,7 +796,7 @@ export class Wallet {
     recipient: string,
     amount: number,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address: string = await this.getAddress();
     const uiov: number = amount * token.subunitsPerUnit;
     const message: Tx<MsgSend> = {
@@ -821,7 +824,7 @@ export class Wallet {
     domain: string,
     uri: string | null,
     memo = "",
-  ): Promise<PostTxResult> {
+  ): Promise<DeliverTxResponse> {
     const address = await this.getAddress();
     const message: Tx<MsgReplaceAccountMetadata> = {
       typeUrl: TxType.Starname.ReplaceAccountMetadata,
