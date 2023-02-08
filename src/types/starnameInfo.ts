@@ -1,6 +1,7 @@
 import { Account } from "./account";
 import { Domain } from "./domain";
 
-export interface StarnameInfo extends Omit<Account, "domain"> {
-  readonly domain: Domain;
+export interface StarnameInfo {
+  readonly domainInfo: Domain;
+  readonly accountInfo: Account | null;
 }

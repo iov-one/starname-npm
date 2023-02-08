@@ -41,10 +41,13 @@ describe("Stargate Api Implementation", (): void => {
     // Register a starname
     const starnameTask = starnameClient.getStarnameInfo(`*${testName}`);
     const starname = await starnameTask.run();
-    expect(starname.name).toEqual("");
-    expect(starname.domain.name).toEqual(testName);
-    expect(starname.owner).toEqual(address);
-    expect(starname.certificates).toHaveLength(0);
-    expect(starname.resources).toHaveLength(0);
+    expect(starname.domainInfo.name).toEqual(testName);
+    expect(starname.accountInfo).not.toBe(null);
+    if (starname.accountInfo) {
+      expect(starname.accountInfo.name).toEqual("");
+      expect(starname.accountInfo.owner).toEqual(address);
+      expect(starname.accountInfo.certificates).toHaveLength(0);
+      expect(starname.accountInfo.resources).toHaveLength(0);
+    }
   });
 });

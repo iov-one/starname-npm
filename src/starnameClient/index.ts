@@ -716,12 +716,11 @@ export class StarnameClient {
    * Query a starname from the blockchain.
    * @param {string} starname - The starname you want to lookup
    *
-   * On success a `Starname` object is returned with all the relevant
-   * information like the resources associated with `starname`
+   * On success a `StarnameInfo` object is returned with all the relevant
+   * information associated with `starname`
    *
-   * On failure, if the accounts was not found a `FetchError` is thrown
+   * On failure, if the domain was not found a `FetchError` is thrown
    * with code `3`.
-   * Look for message in error to know which query actually failed
    */
   public getStarnameInfo(starname: string): Task<StarnameInfo> {
     if (starname.split("*").length !== 2)
@@ -731,13 +730,21 @@ export class StarnameClient {
     const domainTask: Task<Domain> = this.getDomainInfo(domain);
     return {
       run: async (): Promise<StarnameInfo> => {
-        // run domain task first as there is no meaning of a account with a real domain
+        // run domain task first as there is no meaning of a account without a real domain
         const domainInfo = await domainTask.run();
         accountTask = this.resolveStarname(starname);
-        return {
-          ...(await accountTask.run()),
-          domain: domainInfo,
-        };
+        try {
+          const accountInfo = await accountTask.run();
+          return {
+            domainInfo,
+            accountInfo,
+          };
+        } catch {
+          return {
+            domainInfo,
+            accountInfo: null,
+          };
+        }
       },
       abort: (): void => {
         domainTask.abort();
