@@ -1,10 +1,8 @@
-import { ApiAccount } from "../types/account";
-import { ApiDomain } from "../types/domain";
-import { Starname } from "../types/starname";
-
-export const transformValidUntil = (
-  value: ApiAccount | ApiDomain,
-): Starname => {
+export const transformValidUntil = <T extends object>(
+  value: T & {
+    valid_until: string;
+  },
+): Omit<T, "valid_until"> & { validUntil: number } => {
   return {
     ...value,
     validUntil: parseInt(value.valid_until) * 1000,
