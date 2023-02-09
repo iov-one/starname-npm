@@ -19,5 +19,5 @@ export interface Domain {
 }
 
 export const transformDomainResponmse = (domain: ApiDomain): Domain => {
-  return transformValidUntil(domain) as Domain;
+  return transformValidUntil(domain);
 };

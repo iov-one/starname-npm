@@ -59,15 +59,6 @@ export class Amount implements CoinLike {
   }
 }
 
-export const toInternalCoins = (
-  coins: ReadonlyArray<Coin>,
-  tokens: Record<string, TokenLike>,
-): ReadonlyArray<Amount> => {
-  return coins.map(
-    (item: Coin): Amount => new Amount(Number(item.amount), tokens[item.denom]),
-  );
-};
-
 export const isAmount = (
   candidates: ReadonlyArray<any>,
 ): candidates is ReadonlyArray<Amount> => {

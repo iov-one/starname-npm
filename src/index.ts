@@ -41,7 +41,7 @@ export { SeedPhraseSigner } from "./signers/seedPhrase";
 export { ViewOnlySigner } from "./signers/viewOnly";
 export { sortTransactions } from "./logic/sortTransactions";
 
-export { Amount, isAmount, toInternalCoins } from "./types/amount";
+export { Amount, isAmount } from "./types/amount";
 export { SocialHandleType, isSocialHandleType } from "./types/socialHandleType";
 export { estimateFee } from "./utils/estimateFee";
 export {

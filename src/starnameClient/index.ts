@@ -7,10 +7,9 @@ import {
 } from "@cosmjs/stargate";
 
 import { sortTransactions } from "../logic/sortTransactions";
-import { EscrowState } from "../proto/iov/escrow/v1beta1/types";
 import { TxType } from "../starnameRegistry";
 import { Account, transformAccountResponse } from "../types/account";
-import { Amount, toInternalCoins } from "../types/amount";
+import { Amount } from "../types/amount";
 import { ResponsePage } from "../types/apiPage";
 import { ValidatorLogoResponse } from "../types/delegationValidator";
 import { Domain, transformDomainResponmse } from "../types/domain";
@@ -19,6 +18,7 @@ import {
   Escrow,
   EscrowObject,
   isEscrowDomainObject,
+  transformEscrowResponse,
 } from "../types/escrow";
 import { Fees, transformFeesResponse } from "../types/fees";
 import { Reward } from "../types/rewardsResponse";
@@ -98,7 +98,7 @@ export class StarnameClient {
     starnameClient.tokens = chainTokens.reduce((prev, curr) => {
       return {
         ...prev,
-        [curr.ticker]: curr,
+        [curr.ticker.toUpperCase()]: curr,
       };
     }, {});
     starnameClient.settings = await starnameClient.loadSettings();
@@ -405,13 +405,7 @@ export class StarnameClient {
         const {
           result: { escrow },
         } = await task.run();
-        return {
-          ...escrow,
-          state:
-            escrow.state === undefined
-              ? EscrowState.ESCROW_STATE_OPEN
-              : escrow.state,
-        };
+        return transformEscrowResponse(escrow);
       },
       abort: (): void => task.abort(),
     };
@@ -452,15 +446,7 @@ export class StarnameClient {
         // api only return escrows with state expired
         // and only cares for open or expired
         return result.escrows
-          ? result.escrows.map((_es) => {
-              return {
-                ..._es,
-                state:
-                  _es.state === undefined
-                    ? EscrowState.ESCROW_STATE_OPEN
-                    : _es.state,
-              };
-            })
+          ? result.escrows.map(transformEscrowResponse)
           : [];
       },
       abort: (): void => task.abort(),
@@ -469,7 +455,7 @@ export class StarnameClient {
 
   public escrowObjectToStarname(object: EscrowObject): string {
     if (isEscrowDomainObject(object)) {
-      return `*${object.value.name}`;
+      return `*${object.name}`;
     } else {
       return `${object.name}*${object.domain}`;
     }
@@ -615,7 +601,11 @@ export class StarnameClient {
   }
 
   public toInternalCoins(coins: ReadonlyArray<Coin>): ReadonlyArray<Amount> {
-    return toInternalCoins(coins, this.tokens);
+    return coins.map((coin) => {
+      const token = this.getToken(coin.denom);
+      if (!token) throw new Error("cant find token for " + coin.denom);
+      return new Amount(Number(coin.amount), token);
+    });
   }
 
   public toInternalTransaction(
@@ -769,14 +759,12 @@ export class StarnameClient {
   };
 
   public getTokenBySymbol = (symbol: string): TokenLike | undefined => {
-    return this.tokens[symbol];
+    return this.tokens[symbol.toUpperCase()];
   };
 
   public getToken = (subunitName: string): TokenLike | undefined => {
     const tokens = Object.values(this.tokens);
-    return tokens.find(
-      (_t) => _t.subunitName.toUpperCase() === subunitName.toUpperCase(),
-    );
+    return tokens.find((_t) => _t.subunitName === subunitName.toLowerCase());
   };
 
   public getFees = (): Fees => {

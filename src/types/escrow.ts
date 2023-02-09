@@ -1,61 +1,77 @@
+import { Coin } from "@cosmjs/amino";
 import { EscrowState } from "../proto/iov/escrow/v1beta1/types";
-import { Resource } from "./resource";
+import { transformValidUntil } from "../utils/transformValidUntil";
+import { Account, ApiAccount } from "./account";
+import { ApiDomain, Domain } from "./domain";
 
-export interface EscrowDomainObject {
+export interface ApiEscrowDomainObject {
   readonly type: "starname/Domain";
-  readonly value: {
-    name: string;
-    admin: string;
-    valid_until: string;
-    type: string;
-  };
+  readonly value: Omit<ApiDomain, "broker">;
 }
 
-export interface EscrowAccountObject {
-  domain: string;
-  name: string;
-  owner: string;
-  valid_until: string;
-  resources: ReadonlyArray<Resource>;
-  metadata_uri?: string;
-}
+export type ApiEscrowAccountObject = Omit<
+  ApiAccount,
+  "broker" | "certificates"
+>;
 
+export type ApiEscrowObject = ApiEscrowDomainObject | ApiEscrowAccountObject;
+
+export type EscrowDomainObject = Omit<Domain, "broker">;
+export type EscrowAccountObject = Omit<Account, "broker" | "certificates">;
 export type EscrowObject = EscrowDomainObject | EscrowAccountObject;
 
 export interface ApiEscrow {
   readonly id: string;
   readonly seller: string;
-  readonly object: EscrowObject;
-  readonly price: [
-    {
-      denom: string;
-      amount: string;
-    },
-  ];
+  readonly object: ApiEscrowObject;
+  readonly price: ReadonlyArray<Coin>;
   readonly state?: EscrowState;
   readonly deadline: string;
   readonly broker_address: string;
   readonly broker_commission: string;
 }
 
-export interface Escrow extends ApiEscrow {
-  readonly state: EscrowState;
+export interface Escrow {
+  readonly id: string;
+  readonly seller: string;
+  readonly object: EscrowObject;
+  readonly price: ReadonlyArray<Coin>;
+  readonly state: "open" | "expired";
+  readonly deadline: Date;
+  readonly brokerAddress: string;
+  readonly brokerCommission: number;
 }
 
-export interface ModifiableEscrowFields {
-  readonly amount: string;
-  readonly deadline: Date;
-  readonly seller: string;
-}
+export const isApiEscrowDomainObject = (
+  obj: ApiEscrowObject | any,
+): obj is ApiEscrowDomainObject => {
+  return obj.type !== undefined && obj.type === "starname/Domain";
+};
 
 export const isEscrowDomainObject = (
   obj: EscrowObject | any,
 ): obj is EscrowDomainObject => {
-  return obj.type !== undefined && obj.type === "starname/Domain";
+  if (obj.admin !== undefined && typeof obj.admin === "string") return true;
+  return false;
 };
 
 export const isEscrowAccountObject = (
   obj: EscrowObject | any,
 ): obj is EscrowAccountObject => {
   return !isEscrowDomainObject(obj);
+};
+
+export const transformEscrowResponse = (escrow: ApiEscrow): Escrow => {
+  return {
+    id: escrow.id,
+    seller: escrow.seller,
+    object: isApiEscrowDomainObject(escrow.object)
+      ? transformValidUntil(escrow.object.value)
+      : transformValidUntil(escrow.object),
+    brokerAddress: escrow.broker_address,
+    brokerCommission: Number(escrow.broker_commission),
+    deadline: new Date(Number(escrow.deadline) * 1000),
+    state: escrow.state === undefined ? "open" : "expired",
+    price: escrow.price,
+  };
 };
