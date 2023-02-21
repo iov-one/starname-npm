@@ -3,7 +3,6 @@ import { Coin, StdFee } from "@cosmjs/stargate";
 
 import { TxType } from "../starnameRegistry";
 import { isKeyOf } from "../utils/isKeyOf";
-import { defaultGasConfig } from "./defaultGasConfig";
 
 export interface GasConfig {
   readonly gasMap: GasMap;
@@ -27,8 +26,11 @@ const getResourcesCount = (msg: EncodeObject): number => {
   }
 };
 
-export const estimateFee = (msgs: ReadonlyArray<EncodeObject>): StdFee => {
-  const { gasMap, gasPrice } = defaultGasConfig;
+export const estimateFee = (
+  msgs: ReadonlyArray<EncodeObject>,
+  gasConfig: GasConfig,
+): StdFee => {
+  const { gasMap, gasPrice } = gasConfig;
   const totalGas = msgs.reduce(
     (_totalGas: number, msg: EncodeObject): number => {
       const msgType = msg.typeUrl;

@@ -46,7 +46,6 @@
     "@cosmjs/proto-signing": "^0.29.5",
     "@cosmjs/stargate": "^0.29.5",
     "@iov/asset-directory": "^4.2.5",
-    "@iov/gdrive-custodian": "^1.3.0",
     "@iov/ledger-iovns": "^2.1.1",
     "@keplr-wallet/types": "^0.11.32",
     "@ledgerhq/hw-transport": "^6.27.10",

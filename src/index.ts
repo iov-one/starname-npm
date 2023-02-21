@@ -69,7 +69,15 @@ export {
   getTargetsFromResources,
 } from "./types/assetResource";
 
+export {
+  GoogleAuthInfo,
+  Signer as GdriveSigner,
+  SignerState,
+  SignerConfiguration,
+  TwoFactorAuthConfig,
+} from "@iov/gdrive-custodian";
 export { Account } from "./types/account";
+export { Tx } from "./types/tx";
 export {
   MsgRegisterAccount,
   MsgSignText,

@@ -8,6 +8,10 @@ import { SignerType } from "./signerType";
 export interface Signer {
   readonly type: SignerType;
 
+  /**
+   * Must be called to properly initialize the instance
+   * @param args
+   */
   initialize(...args: any[]): Promise<boolean>;
 
   disconnect(): void;

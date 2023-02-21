@@ -13,46 +13,51 @@ import { ChainMap } from "../types/chainMap";
 import { MismatchedAddressError, Signer } from "./signer";
 import { SignerType } from "./signerType";
 
+const SignerNotInitialized = "Signer not initialized";
+
 export class GoogleSigner implements Signer {
   public readonly type: SignerType = SignerType.Google;
-  private readonly proxySigner: GDriveSigner;
-
-  constructor(proxySigner: GDriveSigner) {
-    this.proxySigner = proxySigner;
-  }
+  private signer: GDriveSigner | null = null;
 
   public async getPublicKey(): Promise<string> {
-    const { proxySigner } = this;
-    return proxySigner.getPublicKey();
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+    return signer.getPublicKey();
   }
 
   public async getAddress(): Promise<string> {
-    const { proxySigner } = this;
-    return proxySigner.getAddress();
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+    return signer.getAddress();
   }
 
   public getAddressGroup(chains: ChainMap): Promise<AddressGroup> {
-    const { proxySigner } = this;
-    return proxySigner.getExtraAccounts(chains);
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+    return signer.getExtraAccounts(chains);
   }
 
-  public initialize(): Promise<boolean> {
-    return Promise.resolve(false);
+  public async initialize(signer: GDriveSigner): Promise<boolean> {
+    this.signer = signer;
+    return true;
   }
 
   public async signOut(): Promise<void> {
-    const { proxySigner } = this;
-    return proxySigner.signOut();
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+    return signer.signOut();
   }
 
   public isMnemonicSafelyStored(): Promise<boolean> {
-    const { proxySigner } = this;
-    return proxySigner.isMnemonicSafelyStored();
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+    return signer.isMnemonicSafelyStored();
   }
 
   public showMnemonic(path: string): Promise<boolean> {
-    const { proxySigner } = this;
-    return proxySigner.showMnemonic(path);
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+    return signer.showMnemonic(path);
   }
 
   public async getAccounts(): Promise<readonly AccountData[]> {
@@ -69,24 +74,25 @@ export class GoogleSigner implements Signer {
     signerAddress: string,
     signDoc: SignDoc,
   ): Promise<DirectSignResponse> {
-    const { proxySigner } = this;
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
     if (signerAddress !== (await this.getAddress())) {
       throw MismatchedAddressError;
     }
-
-    return proxySigner.sign(signDoc) as Promise<DirectSignResponse>;
+    return signer.sign(signDoc) as Promise<DirectSignResponse>;
   }
 
   public async signAlephMessage(
     signerAddress: string,
     signDoc: StdSignDoc,
   ): Promise<AminoSignResponse> {
-    const { proxySigner } = this;
+    const { signer } = this;
+    if (!signer) throw new Error(SignerNotInitialized);
+
     if (signerAddress !== (await this.getAddress())) {
       throw MismatchedAddressError;
     }
-
-    return proxySigner.sign(signDoc) as Promise<AminoSignResponse>;
+    return signer.sign(signDoc) as Promise<AminoSignResponse>;
   }
 
   public getOfflineSigner(): OfflineSigner {

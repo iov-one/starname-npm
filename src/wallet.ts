@@ -64,22 +64,26 @@ import { Transaction } from "./types/transaction";
 import { Tx } from "./types/tx";
 import { constructTransferrableObject } from "./utils/constructTransferrableObject";
 import { createResourcesFromAddressGroup } from "./utils/createResourcesFromAddressGroup";
-import { estimateFee } from "./utils/estimateFee";
+import { estimateFee, GasConfig } from "./utils/estimateFee";
 import { Buffer } from "buffer/";
+import { defaultGasConfig } from "./utils/defaultGasConfig";
 
 export interface WalletOptions {
-  readonly feeEstimator: FeeEstimator;
+  readonly feeEstimator?: FeeEstimator;
+  readonly gasConfig?: GasConfig;
 }
 
 export class Wallet {
-  private readonly starnameClient: StarnameClient;
+  protected readonly starnameClient: StarnameClient;
   private readonly signer: Signer;
   private readonly feeEstimator: FeeEstimator;
+  private readonly gasConfig: GasConfig;
 
   constructor(signer: Signer, client: StarnameClient, options?: WalletOptions) {
     this.starnameClient = client;
     this.signer = signer;
-    this.feeEstimator = options ? options.feeEstimator : estimateFee;
+    this.feeEstimator = options?.feeEstimator ?? estimateFee;
+    this.gasConfig = options?.gasConfig ?? defaultGasConfig;
   }
 
   protected async signAndBroadcast(
@@ -117,7 +121,7 @@ export class Wallet {
     const { messages, memo } = msgsAndMemo;
     const { starnameClient } = this;
     const address = await this.getAddress();
-    const fee = this.feeEstimator(messages);
+    const fee = this.feeEstimator(messages, this.gasConfig);
     const registry = new StarnameRegistry();
 
     const defaultAminoTypes = {
@@ -208,7 +212,7 @@ export class Wallet {
     };
   }
 
-  private static buildPreferredAssetItem(
+  protected static buildPreferredAssetItem(
     preferredAsset: string,
   ): ReadonlyArray<Resource> {
     if (preferredAsset === "") return [];
@@ -254,7 +258,7 @@ export class Wallet {
     });
   }
 
-  private sanitizeResources(
+  protected sanitizeResources(
     resources: ReadonlyArray<Resource>,
   ): Array<Resource> {
     return resources
@@ -495,9 +499,9 @@ export class Wallet {
     });
   }
 
-  public getOtherChainResources = async (
+  public async getOtherChainResources(
     chains: ChainMap,
-  ): Promise<Array<Resource>> => {
+  ): Promise<Array<Resource>> {
     const { signer } = this;
 
     switch (this.getSignerType()) {
@@ -511,7 +515,7 @@ export class Wallet {
       default:
         return [];
     }
-  };
+  }
 
   public async registerAccount(
     name: string,

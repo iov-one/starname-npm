@@ -1,4 +1,9 @@
-import { GoogleAuthInfo, Signer, SignerState } from "@iov/gdrive-custodian";
+import {
+  GoogleAuthInfo,
+  Signer,
+  SignerState,
+  TwoFactorAuthConfig,
+} from "@iov/gdrive-custodian";
 
 type VoidCallback = () => void;
 
@@ -10,12 +15,13 @@ export class GDriveCustodian {
   private authInfo?: GoogleAuthInfo;
   protected signer?: Signer;
 
-  public initialized = true;
+  public initialized = false;
 
   public static create(
     googleClientID: string,
     mnemonicLength: 12 | 24,
     signAuthPath: string,
+    twoFactorAuthConfig?: TwoFactorAuthConfig,
   ): GDriveCustodian {
     const custodian = new GDriveCustodian();
     custodian.signer = new Signer({
@@ -24,8 +30,9 @@ export class GDriveCustodian {
       },
       googleClientID: googleClientID,
       mnemonicLength: mnemonicLength,
+      twoFactorAuthUrls: twoFactorAuthConfig,
     });
-    custodian.initialized = false;
+    custodian.initialized = true;
     return custodian;
   }
 
@@ -55,12 +62,12 @@ export class GDriveCustodian {
     signer.removeStateChangeListener();
   }
 
-  public connect(button: HTMLElement): VoidCallback {
+  public connect(): VoidCallback {
     const { signer } = this;
     if (signer === undefined) {
       throw SignerUndefinedError;
     }
-    return signer.connect(button);
+    return signer.connect();
   }
 
   public detach(): void {
@@ -80,7 +87,7 @@ export class GDriveCustodian {
   }
 
   public getIdToken(): string {
-    if (this.initialized) {
+    if (!this.initialized) {
       throw new Error("it's the default thing, why do we actually need it?");
     }
     const { authInfo } = this;
@@ -91,7 +98,40 @@ export class GDriveCustodian {
       throw new Error("did you sign in with google?");
     }
   }
+  /**
+   * Call this to respond with a token (TOTP) to custodian in order to move forward with login 2FA flow
+   * @param token - provided by user (i.e TOTP)
+   */
+  public authenticateWith2fa(token: string): Promise<void> {
+    const { signer } = this;
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
+    return signer.authenticate2faUser(
+      JSON.stringify({ idToken: this.getIdToken(), token }),
+    );
+  }
 
+  /**
+   * Utility function to validate with 2FA in delicate scenarios
+   * This is not required at login flow (implicitly called there)
+   * @param token
+   * @returns boolean
+   */
+  public validateWith2fa(token: string): Promise<boolean> {
+    const { signer } = this;
+    if (signer === undefined) {
+      throw SignerUndefinedError;
+    }
+    return signer.validate2faUser(
+      JSON.stringify({ idToken: this.getIdToken(), token }),
+    );
+  }
+
+  /**
+   * Use this to setup authinfo when SignerState === Authenticated
+   * @param authInfo
+   */
   public setAuthInfo(authInfo: GoogleAuthInfo): void {
     this.authInfo = authInfo;
   }

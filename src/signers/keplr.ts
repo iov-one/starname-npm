@@ -46,16 +46,37 @@ export class KeplrSigner implements Signer {
     // enable these chains first
     if (keplr === null) throw new Error("Keplr extension not initialized");
     const chainIds = Object.keys(chains);
-    await keplr.enable(chainIds);
+    // this data is required for suggesting chain
+    const experimentalChains = chainIds.reduce((acc, chainId) => {
+      const chainData = chains[chainId];
+      if (chainData.suggestChainConfig !== undefined)
+        acc[chainId] = chainData.suggestChainConfig;
+      return acc;
+    }, {} as { [chainId: string]: ChainInfo });
+
+    // these will be permissioned chains
+    // add to this array when user approves reading permission
+    const readableChainIds = chainIds.filter(
+      (_chainId) => experimentalChains[_chainId] === undefined,
+    );
+    for (const experimentalChainId of Object.keys(experimentalChains)) {
+      // wait for user to approve the permission
+      await keplr.experimentalSuggestChain(
+        experimentalChains[experimentalChainId],
+      );
+      // now push to readableChainIds
+      readableChainIds.push(experimentalChainId);
+    }
+    await keplr.enable(readableChainIds);
     const resolvedAddressData = await Promise.all(
-      chainIds.map(async (chainId) => {
+      readableChainIds.map(async (chainId) => {
         const { bech32Address, algo, pubKey } = await keplr.getKey(chainId);
         return [{ address: bech32Address, algo: algo as Algo, pubkey: pubKey }];
       }),
     );
-    return chainIds.reduce((addressGroup, chainId, idx) => {
+    return readableChainIds.reduce((addressGroup, chainId, idx) => {
       return { ...addressGroup, [chainId]: resolvedAddressData[idx] };
-    }, {});
+    }, {} as AddressGroup);
   }
 
   private static getFeatures(): Array<string> {
