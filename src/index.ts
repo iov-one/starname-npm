@@ -1,8 +1,7 @@
 export { ChainInfo } from "@keplr-wallet/types";
-export { Signer } from "./signers/signer";
 export { ResponsePage } from "./types/apiPage";
 export { AssetResource } from "./types/assetResource";
-export { ChainLookup, ChainMap, ChainData } from "./types/chainMap";
+export { ChainLookup } from "./types/chainLookup";
 export { Validator } from "./types/delegationValidator";
 export { Fees } from "./types/fees";
 export { TokenLike } from "./types/tokenLike";
@@ -25,18 +24,14 @@ export { Wallet, WalletOptions } from "./wallet";
 export { Domain, DomainType } from "./types/domain";
 export { Resource } from "./types/resource";
 export { StarnameClient } from "./starnameClient";
-export { SignerType } from "./signers/signerType";
-export { GDriveCustodian } from "./gdrive/custodian";
 export { Task, TaskAbortedError, TaskError } from "./starnameClient/task";
 export { FetchError } from "./starnameClient/http";
 export { StarnameRegistry } from "./starnameRegistry";
 
+export * from "@iov/signer-types";
 export * from "./types/escrow";
-// Signers
-export { LedgerSigner } from "./signers/ledger";
-export { GoogleSigner } from "./signers/google";
+
 export { DummySigner } from "./signers/dummy";
-export { KeplrSigner } from "./signers/keplr";
 export { SeedPhraseSigner } from "./signers/seedPhrase";
 export { ViewOnlySigner } from "./signers/viewOnly";
 export { sortTransactions } from "./logic/sortTransactions";
@@ -68,14 +63,6 @@ export {
   getPreferredAsset,
   getTargetsFromResources,
 } from "./types/assetResource";
-
-export {
-  GoogleAuthInfo,
-  Signer as GdriveSigner,
-  SignerState,
-  SignerConfiguration,
-  TwoFactorAuthConfig,
-} from "@iov/gdrive-custodian";
 export { Account } from "./types/account";
 export { Tx } from "./types/tx";
 export {

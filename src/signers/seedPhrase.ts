@@ -14,11 +14,14 @@ import {
 import { SignDoc } from "cosmjs-types/cosmos/tx/v1beta1/tx";
 
 import { hdPath } from "../constants/hdPath";
-import { AddressGroup } from "../types/addressGroup";
-import { ChainMap } from "../types/chainMap";
-import { MismatchedAddressError, Signer } from "./signer";
-import { SignerType } from "./signerType";
 import { Buffer } from "buffer/";
+import {
+  AddressGroup,
+  ChainMap,
+  MismatchedAddressError,
+  Signer,
+  SignerType,
+} from "@iov/signer-types";
 
 export class SeedPhraseSigner implements Signer {
   readonly type = SignerType.SeedPhrase;

@@ -4,10 +4,7 @@ import {
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
-
-import { AddressGroup } from "../types/addressGroup";
-import { Signer } from "./signer";
-import { SignerType } from "./signerType";
+import { AddressGroup, Signer, SignerType } from "@iov/signer-types";
 
 export class ViewOnlySigner implements Signer {
   public readonly type: SignerType = SignerType.ViewOnly;
@@ -31,7 +28,7 @@ export class ViewOnlySigner implements Signer {
   }
 
   public async initialize(): Promise<boolean> {
-    return true;
+    return Promise.resolve(true);
   }
 
   public getAccounts(): Promise<readonly AccountData[]> {

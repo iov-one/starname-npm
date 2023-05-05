@@ -4,10 +4,7 @@ import {
   DirectSignResponse,
   OfflineSigner,
 } from "@cosmjs/proto-signing";
-
-import { AddressGroup } from "../types/addressGroup";
-import { Signer } from "./signer";
-import { SignerType } from "./signerType";
+import { AddressGroup, Signer, SignerType } from "@iov/signer-types";
 
 export class DummySigner implements Signer {
   readonly type: SignerType = SignerType.Generic;

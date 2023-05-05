@@ -1,5 +1,4 @@
-import { AddressGroup } from "../types/addressGroup";
-import { ChainMap } from "../types/chainMap";
+import { AddressGroup, ChainMap } from "@iov/signer-types";
 import { Resource } from "../types/resource";
 
 export const createResourcesFromAddressGroup = (

@@ -52,7 +52,7 @@ export const createWallet = async (
   const signer = new SeedPhraseSigner();
   await signer.initializeRandom();
   const wallet = new Wallet(signer, starnameClient);
-  // await addTokensWithFaucet(await wallet.getAddress());
+  await addTokensWithFaucet(await wallet.getAddress());
   return wallet;
 };
 
