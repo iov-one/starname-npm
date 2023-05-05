@@ -9,6 +9,10 @@
     "*.md",
     "!**/*.spec.*"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iov-one/starname-npm"
+  },
   "scripts": {
     "test": "jest",
     "prebuild": "yarn gen-proto",
