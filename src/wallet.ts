@@ -1,19 +1,11 @@
 import { StdSignature, StdSignDoc } from "@cosmjs/amino";
 import { fromBase64 } from "@cosmjs/encoding";
 import { OfflineSigner } from "@cosmjs/proto-signing";
+import { AminoTypes, DeliverTxResponse } from "@cosmjs/stargate";
 import {
-  AminoTypes,
-  createAuthzAminoConverters,
-  createBankAminoConverters,
-  createDistributionAminoConverters,
-  createFeegrantAminoConverters,
-  createGovAminoConverters,
-  createIbcAminoConverters,
-  createStakingAminoConverters,
-  createVestingAminoConverters,
-  DeliverTxResponse,
-} from "@cosmjs/stargate";
-import { SigningStargateClient } from "@cosmjs/stargate/build/signingstargateclient";
+  createDefaultAminoConverters,
+  SigningStargateClient,
+} from "@cosmjs/stargate/build/signingstargateclient";
 import { MsgSend } from "cosmjs-types/cosmos/bank/v1beta1/tx";
 import { MsgWithdrawDelegatorReward } from "cosmjs-types/cosmos/distribution/v1beta1/tx";
 import {
@@ -46,8 +38,6 @@ import {
   MsgTransferDomain,
 } from "./proto/iov/starname/v1beta1/tx";
 import { Resource } from "./proto/iov/starname/v1beta1/types";
-import { Signer } from "./signers/signer";
-import { SignerType } from "./signers/signerType";
 import { StarnameClient } from "./starnameClient";
 import { Task } from "./starnameClient/task";
 import { StarnameRegistry, TxType } from "./starnameRegistry";
@@ -55,7 +45,6 @@ import { customStarnameAminoTypes } from "./types/aminoTypes";
 import { Amount } from "./types/amount";
 import { ResponsePage } from "./types/apiPage";
 import { AssetResource } from "./types/assetResource";
-import { ChainMap } from "./types/chainMap";
 import { FeeEstimator } from "./types/feeEstimator";
 import { MsgsAndMemo } from "./types/msgsAndMemo";
 import { Starname } from "./types/starname";
@@ -67,6 +56,7 @@ import { createResourcesFromAddressGroup } from "./utils/createResourcesFromAddr
 import { estimateFee, GasConfig } from "./utils/estimateFee";
 import { Buffer } from "buffer/";
 import { defaultGasConfig } from "./utils/defaultGasConfig";
+import { ChainMap, Signer, SignerType } from "@iov/signer-types";
 
 export interface WalletOptions {
   readonly feeEstimator?: FeeEstimator;
@@ -103,6 +93,7 @@ export class Wallet {
       } else {
         return {
           transactionHash: "",
+          txIndex: 0,
           height: 0,
           code: TxRejected,
           rawLog: "",
@@ -124,21 +115,10 @@ export class Wallet {
     const fee = this.feeEstimator(messages, this.gasConfig);
     const registry = new StarnameRegistry();
 
-    const defaultAminoTypes = {
-      ...createAuthzAminoConverters(),
-      ...createBankAminoConverters(),
-      ...createDistributionAminoConverters(),
-      ...createGovAminoConverters(),
-      ...createStakingAminoConverters(""),
-      ...createIbcAminoConverters(),
-      ...createFeegrantAminoConverters(),
-      ...createVestingAminoConverters(),
-    };
-
     const client = await SigningStargateClient.offline(signer, {
       registry,
       aminoTypes: new AminoTypes({
-        ...defaultAminoTypes,
+        ...createDefaultAminoConverters(),
         ...customStarnameAminoTypes,
       }),
     });
