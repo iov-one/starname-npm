@@ -28,7 +28,6 @@ export { Task, TaskAbortedError, TaskError } from "./starnameClient/task";
 export { FetchError } from "./starnameClient/http";
 export { StarnameRegistry } from "./starnameRegistry";
 
-export * from "@iov/signer-types";
 export * from "./types/escrow";
 
 export { DummySigner } from "./signers/dummy";
