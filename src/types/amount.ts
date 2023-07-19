@@ -2,7 +2,6 @@ import { Coin } from "@cosmjs/amino";
 import abbreviate from "../utils/abbreviateNumber";
 
 import { TokenLike } from "./tokenLike";
-import { Currency } from "@keplr-wallet/types";
 
 export interface CoinLike {
   amount: number;
@@ -21,14 +20,6 @@ export class Amount implements CoinLike {
 
   public static fromValue(actualValue: number, token: TokenLike): Amount {
     return new Amount(actualValue * token.subunitsPerUnit, token);
-  }
-
-  public static fromCurrency(actualValue: number, currency: Currency): Amount {
-    return this.fromValue(actualValue, {
-      subunitName: currency.coinMinimalDenom,
-      subunitsPerUnit: 10 ** currency.coinDecimals,
-      ticker: currency.coinDenom,
-    });
   }
 
   public format(abbrv = false, hideTicker = false): string {
