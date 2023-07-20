@@ -18,8 +18,8 @@ export class Amount implements CoinLike {
     this.token = token;
   }
 
-  public static fromValue(value: number, token: TokenLike): Amount {
-    return new Amount(value * token.subunitsPerUnit, token);
+  public static fromValue(actualValue: number, token: TokenLike): Amount {
+    return new Amount(actualValue * token.subunitsPerUnit, token);
   }
 
   public format(abbrv = false, hideTicker = false): string {
@@ -47,6 +47,34 @@ export class Amount implements CoinLike {
 
   public get denom(): string {
     return this.token.subunitName;
+  }
+
+  public add(amount: Amount): Amount {
+    if (this.denom !== amount.denom) {
+      throw new Error("Cannot add different tokens");
+    }
+    return new Amount(this.amount + amount.amount, this.token);
+  }
+
+  public sub(amount: Amount): Amount {
+    if (this.denom !== amount.denom) {
+      throw new Error("Cannot sub different tokens");
+    }
+    return new Amount(this.amount - amount.amount, this.token);
+  }
+
+  public mul(amount: Amount): Amount {
+    if (this.denom !== amount.denom) {
+      throw new Error("Cannot mul different tokens");
+    }
+    return new Amount(this.amount * amount.amount, this.token);
+  }
+
+  public div(amount: Amount): Amount {
+    if (this.denom !== amount.denom) {
+      throw new Error("Cannot div different tokens");
+    }
+    return new Amount(this.amount / amount.amount, this.token);
   }
 
   public toCoins(): ReadonlyArray<Coin> {
