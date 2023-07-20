@@ -73,7 +73,13 @@ export class Wallet {
     this.starnameClient = client;
     this.signer = signer;
     this.feeEstimator = options?.feeEstimator ?? estimateFee;
-    this.gasConfig = options?.gasConfig ?? defaultGasConfig;
+    this.gasConfig = options?.gasConfig ?? {
+      gasMap: defaultGasConfig.gasMap,
+      gasPrice: {
+        ...defaultGasConfig.gasPrice,
+        denom: client.getMainToken().subunitName,
+      },
+    };
   }
 
   protected async signAndBroadcast(
